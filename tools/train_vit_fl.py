@@ -1,0 +1,410 @@
+import sys
+import os
+import numpy as np
+
+home_dir = os.path.dirname(os.path.abspath(__file__ + "/../"))
+sys.path.append(os.path.join(home_dir, "lib"))
+sys.path.append(home_dir)
+
+import torch
+
+from lib.utils.utils import ShellColors as sc
+from lib.core.config import config
+from lib.core.config import get_model_name
+from lib.utils.utils import (
+    save_checkpoint,
+    create_logger_sfl,
+    init_random_seed,
+    set_random_seed,
+    load_checkpoint,
+    show_info,
+    parse_args
+)
+from tools.fed_server import FedServer
+from fl_client import FLClient
+from lib.models.backbones.vit import ViT
+from lib.models.heads import TopdownHeatmapSimpleHead
+from lib.models.vit_pose import ViTPose
+
+def main(args):
+    wdb = None
+    if args.wandb:
+        import wandb
+        from datetime import datetime
+        
+        now = datetime.now()
+        today = now.strftime("%m%d_%H:%M")
+        
+        name = f"aggr-{args.fed}_loss_sacle-{args.loss_scale}_G{args.gnc_num}_{args.gnc_split_num*1000}_bs{args.gnc_train_bs}+P{args.prc_num}_{args.prc_split_num*1000}_bs{args.prc_train_bs}_alpha={args.kd_alpha}"
+        name += "_res"
+        for res in args.gnc_res:
+            name += f"_{res}"
+
+        name += f"_{today}"
+        wdb = wandb
+        wdb.init(
+            config=config,
+            project="RAF-refactoring",
+            name = name,
+        )
+    
+    config.DATASET.AUGMENTATION = args.data_aug
+    config.DATASET.SAME_POS = True if args.same_pos else False
+    config.DATASET.CLEAN_HIGH = True if args.clean_high else False
+    config.FED.FEDAVG = True if args.fed == "fedavg" else False
+    config.FED.FEDPROX = True if args.fed == "fedprox" else False
+    config.KD_USE = True if args.kd_use else False
+    # config.DATASET.NUMBER_OF_SPLITS = args.split_num
+    config.KD_ALPHA = args.kd_alpha
+    config.FED.PROXY_CLIENT = args.prc_use
+    config.FED.PROXY_CLIENT = True if args.prc_num > 0 else False
+    config.LOSS_SCALE = args.loss_scale
+    
+    # if args.train_bs:
+    #     config.TRAIN.BATCH_SIZE = args.train_bs
+    
+    if args.gnc_res:
+        config.MODEL.IMAGE_SIZE = np.empty(len(args.gnc_res), dtype=object)
+        config.MODEL.HEATMAP_SIZE = np.empty(len(args.gnc_res), dtype=object)
+        for i, res in enumerate(args.gnc_res):
+            # if res == "max_high":
+            #     config.MODEL.IMAGE_SIZE[i] = np.array([432, 576])
+            #     config.MODEL.HEATMAP_SIZE[i] = np.array([108, 144])
+            # elif res == "sup_high":
+            #     config.MODEL.IMAGE_SIZE[i] = np.array([288, 384])
+            #     config.MODEL.HEATMAP_SIZE[i] = np.array([72, 96])
+            # elif res == "high":
+            #     config.MODEL.IMAGE_SIZE[i] = np.array([192, 256])
+            #     config.MODEL.HEATMAP_SIZE[i] = np.array([48, 64])
+            # elif res == "mid":
+            #     config.MODEL.IMAGE_SIZE[i] = np.array([144, 192])
+            #     config.MODEL.HEATMAP_SIZE[i] = np.array([36, 48])
+            # elif res == "low":
+            #     config.MODEL.IMAGE_SIZE[i] = np.array([96, 128])
+            #     config.MODEL.HEATMAP_SIZE[i] = np.array([24, 32])
+            # elif res == "sup_low":
+            #     config.MODEL.IMAGE_SIZE[i] = np.array([48, 64])
+            #     config.MODEL.HEATMAP_SIZE[i] = np.array([12, 16])
+            # if res == "high":
+            #     config.MODEL.IMAGE_SIZE[i] = np.array([
+            #         np.array([192, 256]),
+            #         np.array([144, 192]),
+            #         np.array([96, 128])
+            #     ])
+            #     config.MODEL.HEATMAP_SIZE[i] = np.array([
+            #         np.array([48, 64]),
+            #         np.array([36, 48]),
+            #         np.array([24, 32])
+            #     ])
+            # elif res == "mid":
+            #     config.MODEL.IMAGE_SIZE[i] = np.array([
+            #         np.array([144, 192]),
+            #         np.array([96, 128])
+            #     ])
+            #     config.MODEL.HEATMAP_SIZE[i] = np.array([
+            #         np.array([36, 48]),
+            #         np.array([24, 32])
+            #     ])
+            # elif res == "low":
+            #     config.MODEL.IMAGE_SIZE[i] = np.array([96, 128])
+            #     config.MODEL.HEATMAP_SIZE[i] = np.array([24, 32])
+            if args.kd_use:
+                if res == "high":
+                    config.MODEL.IMAGE_SIZE[i] = np.array([
+                        np.array([192, 256]),
+                        np.array([144, 192]),
+                        np.array([96, 128])
+                    ])
+                    config.MODEL.HEATMAP_SIZE[i] = np.array([
+                        np.array([48, 64]),
+                        np.array([36, 48]),
+                        np.array([24, 32])
+                    ])
+                elif res == "mid":
+                    config.MODEL.IMAGE_SIZE[i] = np.array([
+                        np.array([144, 192]),
+                        np.array([96, 128])
+                    ])
+                    config.MODEL.HEATMAP_SIZE[i] = np.array([
+                        np.array([36, 48]),
+                        np.array([24, 32])
+                    ])
+                elif res == "low":
+                    config.MODEL.IMAGE_SIZE[i] = np.array([96, 128])
+                    config.MODEL.HEATMAP_SIZE[i] = np.array([24, 32])
+            else:
+                if res == "max_high":
+                    config.MODEL.IMAGE_SIZE[i] = np.array([432, 576])
+                    config.MODEL.HEATMAP_SIZE[i] = np.array([108, 144])
+                elif res == "sup_high":
+                    config.MODEL.IMAGE_SIZE[i] = np.array([288, 384])
+                    config.MODEL.HEATMAP_SIZE[i] = np.array([72, 96])
+                elif res == "high":
+                    config.MODEL.IMAGE_SIZE[i] = np.array([192, 256])
+                    config.MODEL.HEATMAP_SIZE[i] = np.array([48, 64])
+                elif res == "mid":
+                    config.MODEL.IMAGE_SIZE[i] = np.array([144, 192])
+                    config.MODEL.HEATMAP_SIZE[i] = np.array([36, 48])
+                elif res == "low":
+                    config.MODEL.IMAGE_SIZE[i] = np.array([96, 128])
+                    config.MODEL.HEATMAP_SIZE[i] = np.array([24, 32])
+                elif res == "sup_low":
+                    config.MODEL.IMAGE_SIZE[i] = np.array([48, 64])
+                    config.MODEL.HEATMAP_SIZE[i] = np.array([12, 16])
+        
+        
+        
+        
+        print(f"image size: {config.MODEL.IMAGE_SIZE}")
+        print(f"heatmap size: {config.MODEL.HEATMAP_SIZE}")
+    
+    
+    show_info(0, args, config)
+    
+    print("------------- config image size ---------------------")
+    print(config.MODEL.IMAGE_SIZE)
+    print("------------- config heatmap size ---------------------")
+    print(config.MODEL.HEATMAP_SIZE)
+
+    if "small" in args.cfg:
+        from lib.models.extra.vit_small_uncertainty_config import extra
+    elif "large" in args.cfg:
+        from lib.models.extra.vit_large_uncertainty_config import extra
+    elif "huge" in args.cfg:
+        from lib.models.extra.vit_huge_uncertainty_config import extra
+    else:
+        raise FileNotFoundError(f"Check config file name!!")
+
+    # res_arg = f"pr-split{args.prc_split_num}_pr-bs{args.prc_train_bs}"
+    res_arg = ""
+    for res in args.gnc_res:
+        res_arg += f"{res}_"
+    res_arg += f"{args.kd_alpha}"
+    print(res_arg)
+    logger, final_output_dir = create_logger_sfl(config, args.cfg, f"train_{args.gpu}", arg=res_arg)
+    
+    seed = init_random_seed(args.seed)
+    logger.info(f"Set random seed to {seed}")
+    set_random_seed(seed)
+    
+    pretrained_path = os.path.join(home_dir, args.pretrained)
+    
+    device = torch.device(f"cuda:{args.gpu}" if torch.cuda.is_available() else "cpu")
+    torch.cuda.set_device(device)
+
+    perf_indicator = 0.0
+
+    if config.MODEL.FREEZE_NAME:
+        print("Freeze Group : ", config.MODEL.FREEZE_NAME)
+    if config.MODEL.DIFF_NAME:
+        print("Diff Group : ", config.MODEL.DIFF_NAME)
+    
+    # For Federated Learning -------------------
+    
+    ## Backbone - ViT
+    backbone = ViT(
+        img_size=extra["backbone"]["img_size"],
+        patch_size=extra["backbone"]["patch_size"],
+        embed_dim=extra["backbone"]["embed_dim"],
+        in_channels=3,
+        num_heads=extra["backbone"]["num_heads"],
+        depth=extra["backbone"]["depth"],
+        qkv_bias=True,
+        drop_path_rate=extra["backbone"]["drop_path_rate"],
+        use_gpe=config.MODEL.USE_GPE,
+        use_lpe=config.MODEL.USE_LPE,
+        use_gap=config.MODEL.USE_GAP,
+    )
+ 
+    ## HEAD - Heatmap Simple Head
+    deconv_head = TopdownHeatmapSimpleHead(
+        in_channels=extra["keypoint_head"]["in_channels"],
+        num_deconv_layers=extra["keypoint_head"]["num_deconv_layers"],
+        num_deconv_filters=extra["keypoint_head"]["num_deconv_filters"],
+        num_deconv_kernels=extra["keypoint_head"]["num_deconv_kernels"],
+        extra=dict(final_conv_kernel=1),
+        out_channels=config.MODEL.NUM_JOINTS,
+    )
+    
+    global_fl_model = ViTPose(backbone, deconv_head)
+    
+    # fl client model weight initialization
+    if "mae" in pretrained_path:
+        load_checkpoint(global_fl_model, pretrained_path)
+    
+    # global fl model -> gpu
+    global_fl_model.to(device)
+    
+    fl_clients = []
+    for idx in range(args.gnc_num):
+        fl_clients.append(
+            FLClient(
+                idx=idx, # dataset의 index
+                config=config,
+                device=device,
+                init_model=global_fl_model,
+                extra=extra,
+                wdb=wdb,
+                logger=logger,
+                im_size=config.MODEL.IMAGE_SIZE[idx],
+                hm_size=config.MODEL.HEATMAP_SIZE[idx],
+                split_size=args.gnc_split_num,
+                batch_size=args.gnc_train_bs,
+                is_proxy=False,
+            )
+        )
+    
+    if config.FED.PROXY_CLIENT:
+        proxy_client_im_size = np.array([
+            np.array([192, 256]),
+            np.array([144, 192]),
+            np.array([96, 128])
+        ])
+        proxy_client_hm_size = np.array([
+            np.array([48, 64]),
+            np.array([36, 48]),
+            np.array([24, 32])
+        ])
+        # proxy_client_im_size = np.array([192, 256])
+        # proxy_client_hm_size = np.array([48, 64])
+        
+        fl_pr_clients = []
+        for i in range(args.prc_num):
+            fl_pr_clients.append(
+                FLClient(
+                    idx=int(22 / args.prc_split_num) - 1 - i, # prc의 index는 거꾸로
+                    config=config,
+                    device=device,
+                    init_model=global_fl_model,
+                    extra=extra,
+                    wdb=wdb,
+                    logger=logger,
+                    im_size=proxy_client_im_size,
+                    hm_size=proxy_client_hm_size,
+                    split_size=args.prc_split_num,
+                    batch_size=args.prc_train_bs,
+                    is_proxy=True,
+                )
+            )
+    
+    # Fed Server for aggregating model weights
+    fed_server = FedServer()
+    
+    avg_perf_buf = [0.0]
+    
+    for epoch in range(config.TRAIN.BEGIN_EPOCH, config.TRAIN.END_EPOCH):
+        init_time = datetime.now()
+        
+        # scheduler step
+        for client in fl_clients:
+            client.lr_scheduler.step()
+        
+        if config.FED.PROXY_CLIENT:
+            for pr_client in fl_pr_clients:
+                pr_client.lr_scheduler.step()
+
+        # -------- Train --------------------------------------------------------
+        client_weights = []
+        for idx, client in enumerate(fl_clients):
+            # print(f"\n>>> General Client [{idx}] Training")
+            if isinstance(config.MODEL.IMAGE_SIZE[idx][0], (np.ndarray, list)):
+                print(f"\n>>> General Client [{idx}]-[{args.gnc_res[idx]}] Multi-res (KD) Federated Learning Training")
+                client.train_multi_resolution(epoch)
+            else:
+                print(f"\n>>> General Client [{idx}]-[{args.gnc_res[idx]}] Single-res (No-KD) Federated Learning Training")
+                client.train_single_resolution(epoch)
+            
+            client_weights.append(client.model.state_dict())
+        
+        # if epoch > 0:
+        if config.FED.PROXY_CLIENT:
+            for idx, pr_client in enumerate(fl_pr_clients):
+                print(f"\n>>> PR-Client [{idx}] Training")
+                pr_client.train_multi_resolution(epoch)
+                # pr_client.train_single_resolution(epoch)
+                client_weights.append(pr_client.model.state_dict())
+        
+        # aggregate weights
+        logger.info(">>> load Fed-Averaged weight to the proxy client model ...")
+        w_glob_client = fed_server.aggregate(logger, client_weights)
+        
+        # Braadcast weight to each clients
+        logger.info(">>> load Fed-Averaged weight to the each client model ...")
+        for client in fl_clients:
+            client.model.load_state_dict(w_glob_client)
+        
+        if config.FED.PROXY_CLIENT:
+            for pr_client in fl_pr_clients:
+                pr_client.model.load_state_dict(w_glob_client)
+        
+        # load weight to global fl model
+        global_fl_model.load_state_dict(w_glob_client)
+        
+        epoch_e_time = datetime.now() - init_time
+        logger.info(f"This epoch takes {epoch_e_time}\n")
+        # ----------------------------------------------------------------------
+        for client in fl_clients:
+            lr_ = client.lr_scheduler.get_lr()
+            for i, g in enumerate(client.optimizer.param_groups):
+                g["lr"] = lr_[i]
+        
+        if config.FED.PROXY_CLIENT:
+            for pr_client in fl_pr_clients:
+                lr_p = pr_client.lr_scheduler.get_lr()
+                for i, g in enumerate(pr_client.optimizer.param_groups):
+                    g["lr"] = lr_p[i]
+
+        # -------- Test --------------------------------------------------------
+        # evaluate on validation set
+        if epoch % config.EVALUATION.INTERVAL == 0:
+            global_model_state_file = os.path.join(
+                final_output_dir,
+                f"{config.MODEL.NAME}_{config.MODEL.TYPE}_global_global_{config.LOSS.HM_LOSS}_{epoch}.pt",
+            )
+            logger.info(f"saving final global model state to {global_model_state_file}")
+            torch.save(global_fl_model.state_dict(), global_model_state_file)
+            
+            curr_avg_perf = 0 # this is average performance
+            
+            for client_idx, client in enumerate(fl_clients):
+                print(f"{sc.COLOR_LIGHT_PURPLE}------------------------------------------------------------{sc.ENDC}")
+                print(f"--------------- Client {sc.COLOR_BROWN}{client_idx} {sc.COLOR_LIGHT_PURPLE}Evaluating{sc.ENDC} ------------")
+                print(f"{sc.COLOR_LIGHT_PURPLE}------------------------------------------------------------{sc.ENDC}")
+                
+                # evaluate performance of each clients
+                perf_indicator = client.evaluate(
+                    backbone=global_fl_model.backbone,
+                    keypoint_head=global_fl_model.keypoint_head,
+                    final_output_dir=final_output_dir,
+                    wdb=wdb,
+                )
+                curr_avg_perf = curr_avg_perf + perf_indicator / len(fl_clients) # this is average performance
+            
+            # avg perf가 가장 높은 성능이 나왔을 때만 model save
+            if curr_avg_perf > max(avg_perf_buf):
+                logger.info(f"Epoch [{epoch}] best avg performance detected: {max(avg_perf_buf):.4f} => {curr_avg_perf:.4f}")
+                avg_perf_buf.append(round(float(curr_avg_perf), 4))
+                logger.info(f"Current Best Average Performances: {avg_perf_buf}")
+                
+                # logging
+                logger.info(f"=> saving best client checkpoint to {final_output_dir}")
+                save_checkpoint(
+                    {
+                        "epoch": epoch + 1,
+                        "model_client": get_model_name(config),
+                        "state_dict": global_fl_model.state_dict(),
+                        "perf": curr_avg_perf,
+                        "optimizer": fl_clients[0].optimizer.state_dict(),
+                        "HM_LOSS": config.LOSS.HM_LOSS,
+                    },
+                    final_output_dir,
+                )
+            
+    # saving model state file    
+    final_global_model_state_file = os.path.join(final_output_dir, "final_state_global.pt")
+    logger.info(f"saving final client model state to {final_global_model_state_file}")
+    torch.save(global_fl_model.state_dict(), final_global_model_state_file)
+
+if __name__ == "__main__":
+    args = parse_args()
+    main(args=args)

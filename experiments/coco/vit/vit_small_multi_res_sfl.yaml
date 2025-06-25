@@ -1,0 +1,210 @@
+
+DATA_DIR: ''
+GPUS: '0'
+OUTPUT_DIR: 'output'
+LOG_DIR: 'log'
+WORKERS: 4
+PRINT_FREQ: 100
+# PRINT_FREQ: 10
+# PRINT_FREQ: 1
+
+DATASET_SETS:
+  -
+    DATASET: 'coco_split_0'
+    ROOT: 'data/coco_split_0/'
+    TEST_SET: 'val2017_split'
+    TRAIN_SET: 'train2017_split_0'
+  -
+    DATASET: 'coco_split_1'
+    ROOT: 'data/coco_split_1/'
+    TEST_SET: 'val2017_split'
+    TRAIN_SET: 'train2017_split_1'
+  -
+    DATASET: 'coco_split_2'
+    ROOT: 'data/coco_split_2/'
+    TEST_SET: 'val2017_split'
+    TRAIN_SET: 'train2017_split_2'
+
+
+DATASET_PROXY:
+  DATASET: 'coco_proxy'
+  ROOT: 'data/coco_proxy/'
+  TEST_SET: 'val2017_proxy'
+  TRAIN_SET: 'train2017_proxy'
+
+
+DATASET:
+  DATASET: 'coco'
+  ROOT: 'data/coco_split_0/'
+  # TEST_SET: 'val2017_split'
+  # TRAIN_SET: 'train2017_split'
+  FLIP: true
+  ROT_FACTOR: 40
+  SCALE_FACTOR: 0.5
+  NUM_JOINTS_HALF_BODY: 8
+  PROB_HALF_BODY: 0.3
+  TARGET_KEYPOINT: True
+  TARGET_HEATMAP: True
+
+MODEL:
+  INIT_WEIGHTS: true
+  NAME: vit
+  TYPE: 'small'
+
+  NUM_JOINTS: 17
+  # PRETRAINED: 'checkpoints/vitpose_large.pth'
+  PRETRAINED: 'checkpoints/mae_pretrain_vit_small.pth'
+  
+  # Single-Resolution을 위한 셋팅
+  # IMAGE_SIZE:
+  # - 192
+  # - 256
+  # HEATMAP_SIZE:
+  # - 48
+  # - 64
+
+  # IMAGE_SIZE:
+  # - 144
+  # - 192
+  # HEATMAP_SIZE:
+  # - 36
+  # - 48
+
+  # IMAGE_SIZE:
+  # - 96
+  # - 128
+  # HEATMAP_SIZE:
+  # - 24
+  # - 32
+
+  # Multi-Resolution을 위한 셋팅
+  IMAGE_SIZE:
+  -
+    - 192
+    - 256
+  -
+    - 144
+    - 192
+  -
+    - 96
+    - 128
+  HEATMAP_SIZE:
+  -
+    - 48
+    - 64
+  -
+    - 36
+    - 48
+  -
+    - 24
+    - 32
+
+  # IMAGE_SIZE:
+  # -
+  #   - 192
+  #   - 256
+  # -
+  #   - 192
+  #   - 256
+  # -
+  #   - 192
+  #   - 256
+  # HEATMAP_SIZE:
+  # -
+  #   - 48
+  #   - 64
+  # -
+  #   - 48
+  #   - 64
+  # -
+  #   - 48
+  #   - 64
+
+
+  # FREEZE_NAME:
+  # - "backbone"
+  # - "keypoint_head"
+  SCALE: 1
+  USE_AFTER_KP_HEAD: false 
+  SUM_TO_ONE: true
+  USE_EXP_KP: False
+
+  USE_GPE: true
+  USE_LPE: true
+  # USE_GAP: true
+
+  # KD_TARGET: "cls"
+  KD_TARGET: "logit_hm"
+
+LOSS:
+  HM_LOSS: "JointMSEloss"
+  # HM_LOSS: "CEloss"
+  # UNC_LOSS: "SoftPlusloss"
+  # KD_LOSS: "DistillationLoss"
+  # KD_LOSS: "JointMSEloss"
+
+  USE_TARGET_WEIGHT: true
+  UNCERTAINTY: false
+  NORMALIZED_MAP: false  
+  USE_INDEXING: true
+  
+  HM_LOSS_WEIGHT: 1
+  KP_LOSS_WEIGHT: 0.0001
+  KD_LOSS_WEIGHT: 1
+  
+  KD_TAU: 1.0
+  KD_TYPE: "smooth-l1" # soft, cosine, l2, None
+
+TRAIN:
+  BATCH_SIZE: 16
+  # BATCH_SIZE: 64
+  # BATCH_SIZE: 128
+  SHUFFLE: true
+  BEGIN_EPOCH: 0
+  # BEGIN_EPOCH: 150
+  END_EPOCH: 211
+  RESUME: false
+  # RESUME: True
+
+  OPTIMIZER: 'adamW'
+  # LR: 0.0000625
+  # LR: 0.000125
+  # LR: 0.0005 # 분산학습할 때는 여기에서 GPU 수만큼 나눠줘야 함.
+  # LR: 0.00025
+  LR: 0.002
+  LR_FACTOR: 0.1
+  # LR_STEP:
+  # - 170
+  # - 190
+  LR_STEP:
+  - 170
+  - 200
+  WD: 0.01
+  GAMMA1: 0.99
+  GAMMA2: 0.0
+  MOMENTUM: 0.9
+  NESTEROV: false
+
+TEST:
+  BATCH_SIZE: 32
+  # BATCH_SIZE: 128
+  # BATCH_SIZE: 256
+  COCO_BBOX_FILE: 'data/coco/person_detection_results/COCO_val2017_detections_AP_H_56_person.json'
+  FLIP_TEST: true
+  IMAGE_THRE: 0.0
+  IN_VIS_THRE: 0.2
+  MODEL_FILE: ''
+  NMS_THRE: 1.0
+  OKS_THRE: 0.9
+  USE_GT_BBOX: False
+  USE_UDP : True 
+  MODULATE_KERNEL: 11
+  SHIFT_TEST: False
+  SHIFT_HEATMAP: False
+
+
+EVALUATION:
+  INTERVAL: 10
+  METRIC: 'mAP'
+  SAVE_BEST: 'AP'
+
