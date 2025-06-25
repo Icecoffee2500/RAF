@@ -20,8 +20,8 @@ from copy import deepcopy
 
 from lib.core.scheduler import MultistepWarmUpRestargets
 from lib.dataset.build_dataloader import build_split_dataloader
-from lib.utils.utils import get_vit_optimizer
-from lib.utils.utils import get_loss
+from lib.utils.utils import get_vit_optimizer # 이건 왜 여기에 들어가있음?
+from lib.utils.utils import get_loss # 이건 왜 여기에 들어가있음?
 from torch.nn.utils import clip_grad
 from lib.core.evaluate import accuracy
 from lib.utils.timer import gpu_timer
