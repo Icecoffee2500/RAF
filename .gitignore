@@ -30,9 +30,6 @@ data/
 wandb/
 output/
 notebooks/
-output_etri/
-output_final/
-output_coco_huge/
 
 # PyInstaller
 #  Usually these files are written by a python script from a template
