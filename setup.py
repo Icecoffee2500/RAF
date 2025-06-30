@@ -13,7 +13,7 @@ lines = [x for x in lines if ".png" not in x]
 long_description = "".join(lines)
 
 setup(
-    name="visual_AI_HPE",
+    name="raf",
     packages=find_packages(exclude=["tests"]),
     install_requires=[
         "EasyDict",

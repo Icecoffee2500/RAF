@@ -1,0 +1,2 @@
+from models.losses.mse_loss import JointsMSELoss
+from models.losses.distillation_loss import DistillationLoss
