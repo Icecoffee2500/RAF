@@ -448,8 +448,7 @@ def _main():
         pin_memory=True,
     )
     
-    # for batch_idx, (inputs, target_joints, target_joints_vis, heatmaps, heatmap_target, meta) in enumerate(train_loader):
-    inputs, target_joints, target_joints_vis, heatmaps, heatmap_target, meta = next(iter(train_loader))
+    inputs, heatmaps, heatmap_target, meta = next(iter(train_loader))
     for idx, input in enumerate(inputs):
         print(f"input [{idx}] shape: {input.shape}")
         feature_map, _ = backbone(input)

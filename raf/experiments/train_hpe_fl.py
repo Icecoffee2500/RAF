@@ -194,11 +194,11 @@ def main(args):
     print("------------- config heatmap size ---------------------")
     print(config.MODEL.HEATMAP_SIZE)
 
-    # 동적 import를 위한 config 파일 매핑
+    # 동적 import를 위한 config 파일 매핑 (uncertainty config 제거됨)
     config_mapping = {
-        "small": "configs.hpe.extra.vit_small_uncertainty_config",
-        "large": "configs.hpe.extra.vit_large_uncertainty_config", 
-        "huge": "configs.hpe.extra.vit_huge_uncertainty_config"
+        "small": "configs.hpe.extra.vit_small_config",
+        "large": "configs.hpe.extra.vit_large_config", 
+        "huge": "configs.hpe.extra.vit_huge_config"
     }
     
     # args.cfg에서 적절한 config 모듈 찾기

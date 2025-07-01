@@ -27,14 +27,5 @@ extra = dict(
         ),
         out_channels=17,
     ),
-    uncertainty_head=dict(
-        in_channel=1024,
-        hid_channel=64,
-        out_channel=34,
-    ),
-    uncertainty_channel_head=dict(
-        in_channel=1024,
-        out_channel=1,
-        num_kp=17,
-    ),
-)
+    # uncertainty_head와 uncertainty_channel_head 제거됨 (사용하지 않음)
+) 

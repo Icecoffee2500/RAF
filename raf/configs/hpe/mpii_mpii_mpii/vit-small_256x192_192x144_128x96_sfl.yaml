@@ -44,7 +44,6 @@ DATASET:
   SCALE_FACTOR: 0.25
   # NUM_JOINTS_HALF_BODY: 8
   # PROB_HALF_BODY: 0.3
-  TARGET_KEYPOINT: True
   TARGET_HEATMAP: True
   # CUTMIX: True
   # CUTOUT: False
@@ -124,13 +123,8 @@ LOSS:
   # KD_LOSS: "DistillationLoss"
   # KD_LOSS: "JointMSEloss"
 
-  USE_TARGET_WEIGHT: true
-  UNCERTAINTY: false
-  NORMALIZED_MAP: false  
-  USE_INDEXING: true
   
   HM_LOSS_WEIGHT: 1
-  KP_LOSS_WEIGHT: 0.0001
   KD_LOSS_WEIGHT: 1
   
   KD_TAU: 1.0

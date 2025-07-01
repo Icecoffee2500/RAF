@@ -31,8 +31,7 @@ from hpe.dataset.utils.pipelines import (
 logger = logging.getLogger(__name__)
 
 
-# class JointsDataset(Dataset[Tuple[torch.Tensor, torch.Tensor, torch.Tensor, Dict[str, Any]]]):
-class  JointsDataset(Dataset):
+class JointsDataset(Dataset, ABC):
     def __init__(
         self,
         cfg,
@@ -57,8 +56,6 @@ class  JointsDataset(Dataset):
         
         if isinstance(image_size[0], (np.ndarray, list)): # 이 방식은 cfg에 의존해서 안좋음.
             self.multi_res = True
-        # for uncertainty
-        self.is_target_keypoints = cfg.DATASET.TARGET_KEYPOINT
         
         # LoadImageFromFile
         self.load_image = LoadImageFromFile(logger)
@@ -114,15 +111,19 @@ class  JointsDataset(Dataset):
         self.flip_pairs = [] # NotImplementedError
         self.db = [] # NotImplementedError
     
+    @abstractmethod
     def _get_db(self):
-        raise NotImplementedError
+        """데이터셋 로딩 메서드 - 서브클래스에서 반드시 구현해야 함"""
+        pass
 
+    @abstractmethod
     def evaluate(self, cfg, preds, output_dir, *args, **kwargs):
-        raise NotImplementedError
+        """각 데이터셋별 평가 메서드 - 서브클래스에서 반드시 구현해야 함"""
+        pass
     
-    # @abstractmethod
-    # def evaluate(self):
-    #     pass
+    def select_data(self, db):
+        """데이터 선택 메서드 - 기본적으로는 전체 데이터 반환"""
+        return db
 
     def __len__(self):
         return len(self.db)
@@ -162,14 +163,6 @@ class  JointsDataset(Dataset):
         
         if self.is_target_heatmap:
             heatmaps, heatmap_weights = self.generate_heatmap(joints_transformed, joints_vis, self.num_joints)
-        
-        if self.is_target_keypoints:
-            if self.multi_res:
-                target_joints = [joints for joints in joints_transformed]
-                target_joints_vis = torch.from_numpy(joints_vis[:, 1])
-            else:
-                target_joints = torch.from_numpy(joints_transformed)
-                target_joints_vis = torch.from_numpy(joints_vis[:, 1])
             
         meta = {
             "image": image_file,
@@ -187,8 +180,6 @@ class  JointsDataset(Dataset):
 
         return (
             input_img,
-            target_joints,
-            target_joints_vis,
             heatmaps,
             heatmap_weights,
             meta,

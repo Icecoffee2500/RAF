@@ -13,8 +13,8 @@ class SplitJointsDataset(Dataset):
         return len(self.idxs)
 
     def __getitem__(self, item):
-        input_img, target_joints, target_joints_vis, heatmaps, heatmaps_weights, meta = self.dataset[self.idxs[item]]
-        return input_img, target_joints, target_joints_vis, heatmaps, heatmaps_weights, meta
+        input_img, heatmaps, heatmaps_weights, meta = self.dataset[self.idxs[item]]
+        return input_img, heatmaps, heatmaps_weights, meta
 
 def build_split_dataset(ori_dataset: Dataset, dataset_idx: int, samples_per_split: int=1000) -> SplitJointsDataset:
 

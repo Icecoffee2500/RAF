@@ -120,7 +120,7 @@ class FLClient:
         epoch_start_time = datetime.now()
         batch_num = len(self.train_loader)
         
-        for batch_idx, (img, target_joint, target_joints_vis, heatmap, heatmap_weight, meta) in enumerate(self.train_loader):
+        for batch_idx, (img, heatmap, heatmap_weight, meta) in enumerate(self.train_loader):
             # etime = gpu_timer(lambda: self._train_step_single(img, heatmap, heatmap_weight))
             etime = gpu_timer(
                 lambda: self._train_step_single(
@@ -219,7 +219,7 @@ class FLClient:
         epoch_start_time = datetime.now()
         batch_num = len(self.train_loader)
         
-        for batch_idx, (imgs, target_joint, target_joints_vis, heatmaps, heatmap_weights, meta) in enumerate(self.train_loader):
+        for batch_idx, (imgs, heatmaps, heatmap_weights, meta) in enumerate(self.train_loader):
             etime = gpu_timer(
                 lambda: self._train_step_multi(
                     imgs, heatmaps, heatmap_weights,
@@ -378,8 +378,7 @@ class FLClient:
         with torch.no_grad():
             end = time.time()
             epoch_start_time = datetime.now()
-            # for batch_idx, (imgs, targets, target_joints_vis, heatmaps, heatmap_weights, meta) in enumerate(self.valid_loader):
-            for batch_idx, (img, target, target_joints_vis, heatmap, heatmap_weight, meta) in enumerate(self.valid_loader):
+            for batch_idx, (img, heatmap, heatmap_weight, meta) in enumerate(self.valid_loader):
                 img, heatmap, heatmap_weight = img.to(self.device), heatmap.to(self.device), heatmap_weight.to(self.device)
                 
                 # ------------------------------- INTERPOLATION TEST ------------------------------- #
@@ -555,7 +554,7 @@ class FLClient:
             logger.info(msg)
             
             # prefix = f"{os.path.join(output_dir, 'train')}_train_batch_idx"
-            # save_debug_images(self.config, img, meta, target_joint, pred * 4, outputs[0], prefix)
+            # save_debug_images(self.config, img, meta, pred * 4, outputs[0], prefix)
             if self.wdb:
                 if self.is_proxy:
                     self.wdb.log({f"Proxy Avg loss": self.losses.avg})

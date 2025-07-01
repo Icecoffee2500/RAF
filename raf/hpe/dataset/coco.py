@@ -9,7 +9,7 @@ from __future__ import division
 from __future__ import print_function
 
 import logging
-import os
+from pathlib import Path
 import pickle
 from collections import defaultdict
 from collections import OrderedDict
@@ -58,9 +58,7 @@ class COCODataset(JointsDataset):
         self.image_thre = cfg.TEST.IMAGE_THRE
         self.oks_thre = cfg.TEST.OKS_THRE
         self.in_vis_thre = cfg.TEST.IN_VIS_THRE
-        self.bbox_file = os.path.join(
-            root, "person_detection_results/COCO_val2017_detections_AP_H_56_person.json"
-        )
+        self.bbox_file = str(Path(root) / "person_detection_results" / "COCO_val2017_detections_AP_H_56_person.json")
         self.use_gt_bbox = cfg.TEST.USE_GT_BBOX
 
         if isinstance(self.image_size[0], (np.ndarray, list)):
@@ -137,7 +135,7 @@ class COCODataset(JointsDataset):
     def _get_ann_file_keypoint(self):
         """self.root / annotations / person_keypoints_train2017.json"""
         prefix = "person_keypoints" if "test" not in self.image_set else "image_info"
-        return os.path.join(self.root, "annotations", prefix + "_" + self.image_set + ".json")
+        return str(Path(self.root) / "annotations" / f"{prefix}_{self.image_set}.json")
 
     def _load_image_set_index(self):
         """image id: int"""
@@ -281,7 +279,7 @@ class COCODataset(JointsDataset):
         if "2014" in self.image_set:
             file_name = "COCO_%s_" % self.image_set + file_name
         prefix = "test2017" if "test" in self.image_set else self.image_set
-        image_path = os.path.join(self.root, "images", prefix, file_name)
+        image_path = str(Path(self.root) / "images" / prefix / file_name)
 
         return image_path
 
@@ -338,10 +336,9 @@ class COCODataset(JointsDataset):
 
     # need double check this API and classes field
     def evaluate(self, cfg, preds, output_dir, all_boxes, img_path, bbox_ids, *args, **kwargs):
-        res_folder = os.path.join(output_dir, "results")
-        if not os.path.exists(res_folder):
-            os.makedirs(res_folder)
-        res_file = os.path.join(res_folder, "keypoints_%s_results.json" % self.image_set)
+        res_folder = Path(output_dir) / "results"
+        res_folder.mkdir(parents=True, exist_ok=True)
+        res_file = res_folder / f"keypoints_{self.image_set}_results.json"
 
         # person x (keypoints)
         _kpts = []
@@ -496,7 +493,7 @@ class COCODataset(JointsDataset):
         for ind, name in enumerate(stats_names):
             info_str.append((name, coco_eval.stats[ind]))
 
-        eval_file = os.path.join(res_folder, "keypoints_%s_results.pkl" % self.image_set)
+        eval_file = res_folder / f"keypoints_{self.image_set}_results.pkl"
 
         with open(eval_file, "wb") as f:
             pickle.dump(coco_eval, f, pickle.HIGHEST_PROTOCOL)

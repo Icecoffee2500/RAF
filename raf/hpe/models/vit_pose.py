@@ -86,7 +86,7 @@ class ViTPose(nn.Module):
 
         changed_checkpoint = {}
         changed_model = OrderedDict()
-        filtered_layer_name = ["cls_token", "uncertainty_head"]
+        filtered_layer_name = ["cls_token"]  # uncertainty_head 제거됨
         for state_dict_name, model in checkpoint.items():
             for layer, params in model.items():
                 layer_without_backbone_name = layer
@@ -224,8 +224,7 @@ def _main():
         pin_memory=True,
     )
     
-    # for batch_idx, (inputs, target_joints, target_joints_vis, heatmaps, heatmap_target, meta) in enumerate(train_loader):
-    inputs, target_joints, target_joints_vis, heatmaps, heatmap_target, meta = next(iter(train_loader))
+    inputs, heatmaps, heatmap_target, meta = next(iter(train_loader))
     for idx, input in enumerate(inputs):
         print(f"input [{idx}] shape: {input.shape}")
         feature_map, _ = backbone(input)

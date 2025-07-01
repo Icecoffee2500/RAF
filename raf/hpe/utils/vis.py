@@ -352,6 +352,7 @@ def display_keypoints(
 
 
 
+# Uncertainty 시각화 함수 - 사용하지 않음
 def display_keypoints_with_uncertainty(
     draw_non_visible, keypoints, k_vis, uncertainty, ax, show_text=True, bound = 1.0
 ):
@@ -445,6 +446,7 @@ def display_heatamp(
         return ax, keypoints_name
     return ax
 
+# Uncertainty 시각화 함수 - 사용하지 않음
 def plot_img_with_kp_unc(img, target_keypoints, preds, keys, target_keypoints_weight, uncertainty ):
     fig = plt.figure(1,figsize=(20,16))
 

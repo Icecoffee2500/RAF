@@ -82,13 +82,9 @@ config.MODEL.KD_TARGET = ""
 config.LOSS = edict()
 config.LOSS.NAME = ""
 config.LOSS.HM_LOSS = ""
-config.LOSS.UNC_LOSS = ""
 config.LOSS.KD_LOSS = ""
 config.LOSS.USE_TARGET_WEIGHT = True
-config.LOSS.USE_TARGET_WEIGHT = True
-config.LOSS.UNCERTAINTY = False
-config.LOSS.NORMALIZED_MAP = False
-config.LOSS.USE_INDEXING = True
+# Uncertainty 관련 설정 제거됨 (사용하지 않음)
 config.LOSS.USE_CROSS_HM = False
 config.LOSS.HM_LOSS_WEIGHT = 0
 config.LOSS.KP_LOSS_WEIGHT = 0
@@ -116,7 +112,6 @@ config.DATASET.TEST_SET = "valid"
 config.DATASET.DATA_FORMAT = "jpg"
 config.DATASET.HYBRID_JOINTS_TYPE = ""
 config.DATASET.SELECT_DATA = False
-config.DATASET.TARGET_KEYPOINT = True
 config.DATASET.TARGET_HEATMAP = False
 
 # training data augmentation

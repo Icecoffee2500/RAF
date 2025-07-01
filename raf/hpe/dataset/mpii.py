@@ -10,7 +10,7 @@ from __future__ import print_function
 
 from collections import OrderedDict
 import logging
-import os
+from pathlib import Path
 import json_tricks as json
 
 import numpy as np
@@ -38,9 +38,7 @@ class MPIIDataset(JointsDataset):
 
     def _get_db(self):
         # create train/val split
-        file_name = os.path.join(self.root,
-                                 'annot',
-                                 self.image_set+'.json')
+        file_name = Path(self.root) / 'annot' / f'{self.image_set}.json'
         with open(file_name) as anno_file:
             anno = json.load(anno_file)
 
@@ -76,7 +74,7 @@ class MPIIDataset(JointsDataset):
             # image_dir = 'images.zip@' if self.data_format == 'zip' else 'images'
             image_dir = 'images'
             gt_db.append({
-                'image': os.path.join(self.root, image_dir, image_name),
+                'image': str(Path(self.root) / image_dir / image_name),
                 'center': c,
                 'scale': s,
                 'rotation': 0, # new!
@@ -94,7 +92,7 @@ class MPIIDataset(JointsDataset):
         preds = preds[:, :, 0:2] + 1.0
 
         if output_dir:
-            pred_file = os.path.join(output_dir, 'pred.mat')
+            pred_file = Path(output_dir) / 'pred.mat'
             savemat(pred_file, mdict={'preds': preds})
 
         if 'test' in cfg.DATASET.TEST_SET:
@@ -103,9 +101,7 @@ class MPIIDataset(JointsDataset):
         SC_BIAS = 0.6
         threshold = 0.5
 
-        gt_file = os.path.join(cfg.DATASET.ROOT,
-                               'annot',
-                               f'gt_{cfg.DATASET.TEST_SET}.mat') # gt_valid.mat파일을 불러옴.
+        gt_file = Path(cfg.DATASET.ROOT) / 'annot' / f'gt_{cfg.DATASET.TEST_SET}.mat'  # gt_valid.mat파일을 불러옴.
         gt_dict = loadmat(gt_file)
         dataset_joints = gt_dict['dataset_joints']
         jnt_missing = gt_dict['jnt_missing']

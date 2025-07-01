@@ -143,18 +143,7 @@ def get_loss(cfg, device=None):
     else:
         raise NotImplementedError("You have to check your HM loss name !!")
 
-    # Uncertainty Loss
-    if cfg.LOSS.UNC_LOSS == "SoftPlusloss":
-        loss["keypoint"] = UncertaintySoftPlusMSELoss(use_target_weight=True)
-        print(f"{ShellColors.COLOR_GREEN}Use SoftPlus Loss{ShellColors.ENDC}")
-    elif cfg.LOSS.UNC_LOSS == "Sigloss":
-        print("Use Sigmoid Loss")
-        loss["keypoint"] = UncertaintySigMSELoss(use_target_weight=True)
-    elif cfg.LOSS.UNC_LOSS == "Exploss":
-        print("Use Exp Loss")
-        loss["keypoint"] = UncertaintyExpMSELoss(use_target_weight=True)
-    else:
-        print(f"{ShellColors.WARNING}Do not use Uncertainty Loss{ShellColors.ENDC}")
+    # Uncertainty Loss 기능 제거됨 (사용하지 않음)
     
     #TODO: Distillation Loss
     if cfg.LOSS.KD_LOSS == "DistillationLoss":
@@ -188,7 +177,6 @@ def get_vit_optimizer(cfg, model, extra):
         large_group_list.append([name for name, param in model.named_parameters() if f'blocks.{i}.' in name])
 
     large_group_list.append([name for name, param in model.named_parameters() if 'keypoint_head' in name])
-    large_group_list.append([name for name, param in model.named_parameters() if 'uncertainty' in name])
 
     # no_decay_group 관련 parameters
     no_decay_name = ['pos_embed', 'norm', 'bias']
@@ -609,7 +597,7 @@ def show_info(gpu, args, config):
     print(f"{ShellColors.COLOR_CYAN}USE UDP: {ShellColors.ENDC}{config.TEST.USE_UDP}")
     print(f"{ShellColors.COLOR_CYAN}USE FLIP: {ShellColors.ENDC}{config.TEST.FLIP_TEST}")
     print(f"{ShellColors.COLOR_CYAN}USE GT BBOX: {ShellColors.ENDC}{config.TEST.USE_GT_BBOX}")
-    print(f"{ShellColors.COLOR_CYAN}USE UNCERTAINTY: {ShellColors.ENDC}{config.LOSS.UNCERTAINTY}")
+    # Uncertainty 기능 제거됨
     print(f"{ShellColors.COLOR_CYAN}USE WARMUP: {ShellColors.ENDC}{args.warmup}")
     print(f"{ShellColors.COLOR_CYAN}USE WANDB: {ShellColors.ENDC}{args.wandb}")
     print(f"{ShellColors.COLOR_CYAN}Augmentation: {ShellColors.ENDC}{args.data_aug}")

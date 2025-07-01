@@ -76,11 +76,11 @@ def main(args):
     # 동적 import 수행 (config 파일명에서 모듈명 추출)
     config_module_name = None
     if "small" in args.cfg:
-        config_module_name = "configs.hpe.extra.vit_small_uncertainty_config"
+        config_module_name = "configs.hpe.extra.vit_small_config"
     elif "large" in args.cfg:
-        config_module_name = "configs.hpe.extra.vit_large_uncertainty_config"
+        config_module_name = "configs.hpe.extra.vit_large_config"
     elif "huge" in args.cfg:
-        config_module_name = "configs.hpe.extra.vit_huge_uncertainty_config"
+        config_module_name = "configs.hpe.extra.vit_huge_config"
     
     if config_module_name is None:
         raise FileNotFoundError(f"Check config file name: {args.cfg}")

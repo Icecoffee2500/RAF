@@ -86,7 +86,7 @@ class ViTPoseSFL(nn.Module):
 
         changed_checkpoint = {}
         changed_model = OrderedDict()
-        filtered_layer_name = ["cls_token", "uncertainty_head"]
+        filtered_layer_name = ["cls_token"]  # uncertainty_head 제거됨
         for state_dict_name, model in checkpoint.items():
             for layer, params in model.items():
                 layer_without_backbone_name = layer
