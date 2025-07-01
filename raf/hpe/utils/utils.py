@@ -25,12 +25,12 @@ from torch import distributed as dist
 from distutils.version import LooseVersion
 
 from pathlib import Path
-from models.losses import *
 from collections import OrderedDict
 from typing import Union
 
 import argparse
-from core.config import update_config
+from configs.hpe.config import update_config
+from hpe.federated.loss_fns import JointsMSELoss, JointsKLDLoss, DistillationLoss
 
 TORCH_VERSION = torch.__version__
 
@@ -172,54 +172,6 @@ def get_loss(cfg, device=None):
 
     return loss
 
-def get_optimizer(cfg, model):
-    optimizer = None
-    freeze_list = []
-    diff_list = []
-    train_list = []
-
-    if cfg.MODEL.FREEZE_NAME or cfg.MODEL.DIFF_NAME:
-        for name, param in model.named_parameters():
-            result_freeze = [True if i in name else False for i in cfg.MODEL.FREEZE_NAME]
-            result_diff = [True if i in name else False for i in cfg.MODEL.DIFF_NAME]
-            if any(result_freeze):
-                param.requires_grad = False
-                freeze_list.append(param)
-            elif any(result_diff):
-                diff_list.append(param)
-            else:
-                train_list.append(param)
- 
-        param_set = []
-        if freeze_list:
-            param_set.append({"params": freeze_list, "lr": 0.0})
-        if diff_list:
-            param_set.append({"params": diff_list, "lr": cfg.TRAIN.LR*cfg.TRAIN.LR_DIFF_FACTOR})
-        if train_list:
-            param_set.append({"params": train_list, "lr": cfg.TRAIN.LR})
-    else:
-        param_set = model.parameters()
-
-    if cfg.TRAIN.OPTIMIZER == "sgd":
-        optimizer = optim.SGD(
-            param_set,
-            lr=cfg.TRAIN.LR,
-            momentum=cfg.TRAIN.MOMENTUM,
-            weight_decay=cfg.TRAIN.WD,
-            nesterov=cfg.TRAIN.NESTEROV,
-        )
-    elif cfg.TRAIN.OPTIMIZER == "adam":
-        optimizer = optim.Adam(param_set, lr=cfg.TRAIN.LR)
-    elif cfg.TRAIN.OPTIMIZER == "adamW":
-        optimizer = optim.AdamW(
-            param_set,
-            lr=cfg.TRAIN.LR,
-            weight_decay=cfg.TRAIN.WD,
-        )
-
-    print("Freeze list & train list : ", len(freeze_list), len(train_list))
-    return optimizer
-
 def get_vit_optimizer(cfg, model, extra):
     # large_group_list 구성하기.
     # large_group_list = [['backbone.pos_embed',
@@ -286,233 +238,6 @@ def get_vit_optimizer(cfg, model, extra):
     optimizer = optim.AdamW(param_group, betas=(0.9, 0.999), eps=1e-08, amsgrad=False)
     return optimizer
 
-def get_vit_client_optimizer(cfg, model, extra, client_backbone_block_num):
-    # large_group_list 구성하기.
-    large_group_list = [
-        [
-            'backbone.pos_embed',
-            'backbone.patch_embed.proj.weight',
-            'backbone.patch_embed.proj.bias',
-            'backbone.global_pos_embed.embed_layer.weight',
-            'backbone.global_pos_embed.embed_layer.bias'
-        ],
-    ]
-    # for i in range(extra['backbone']['depth']):
-    for i in range(client_backbone_block_num):
-        large_group_list.append([name for name, param in model.named_parameters() if f'blocks.{i}.' in name])
-        # client에는 head가 안 들어갈 것이기 때문에 head 관련은 large_group_list에 넣지 않음.
-        # large_group_list의 length는 2가 될 것. (backbone_block_num + 1)
-
-    # no_decay_group 관련 parameters
-    no_decay_name = ['pos_embed', 'norm', 'bias']
-
-    # lr_each_group 구성하기. (얘는 무조건 vit의 크기에 따라 달라짐.) # 얘는 client/server 상관 없이 그대로 둠.
-    lr_each_group = [cfg.TRAIN.LR * extra['backbone']['lr_decay_rate']**i for i in range(extra['backbone']['depth']+2)]
-    lr_each_group.insert(0,cfg.TRAIN.LR)
-    lr_each_group = lr_each_group[::-1]
-    
-    # param_group을 정의 - decay / no decay를 나누기 위함.
-    param_group = []
-    for i, group in enumerate(large_group_list): # 2 groups
-        no_decay_group = []
-        decay_group = []
-        for name in group:
-            if any([1 for n in no_decay_name if n in name]):
-                no_decay_group.append(name)
-            else:
-                decay_group.append(name)
-        if no_decay_group != []:
-            param_group.append(
-                {
-                    'params': [param for name, param in model.named_parameters() if name in no_decay_group], 
-                    'lr': lr_each_group[i], 
-                    'weight_decay': 0.0, 
-                    'param_names': no_decay_group, 
-                    'lr_scale': extra['backbone']['lr_decay_rate']**(len(large_group_list) - i), 
-                }
-            )
-        if decay_group != []: 
-            param_group.append(
-                {
-                    'params': [param for name, param in model.named_parameters() if name in decay_group], 
-                    'lr': lr_each_group[i], 
-                    'weight_decay': 0.1, 
-                    'param_names': decay_group, 
-                    'lr_scale': extra['backbone']['lr_decay_rate']**(len(large_group_list) - i), 
-                }
-            )
-            
-    # freeze를 위한 ...
-    freeze_list = []
-    if cfg.MODEL.FREEZE_NAME or cfg.MODEL.DIFF_NAME:
-        for name, param in model.named_parameters():
-            result_freeze = [True if i in name else False for i in cfg.MODEL.FREEZE_NAME]
-            if any(result_freeze):
-                param.requires_grad = False
-                freeze_list.append(name)
-    # print(f"freeze list => ")
-    # for name in freeze_list:
-    #     print(name)
-    
-    optimizer = optim.AdamW(param_group, betas=(0.9, 0.999), eps=1e-08, amsgrad=False)
-    return optimizer
-
-def get_vit_server_optimizer(cfg, model, extra, client_backbone_block_num):
-    # large_group_list 구성하기.
-    large_group_list = [
-        [
-            'backbone.pos_embed',
-            'backbone.patch_embed.proj.weight',
-            'backbone.patch_embed.proj.bias',
-            'backbone.global_pos_embed.embed_layer.weight',
-            'backbone.global_pos_embed.embed_layer.bias'
-        ],
-    ]
-    server_block_num = extra['backbone']['depth'] - client_backbone_block_num
-    for i in range(server_block_num):
-        large_group_list.append([name for name, param in model.named_parameters() if f'blocks.{i}.' in name])
-    
-    large_group_list.append([name for name, param in model.named_parameters() if 'keypoint_head' in name])
-    large_group_list.append([name for name, param in model.named_parameters() if 'uncertainty' in name])
-    
-    # large_group_list의 length는 12가 될 것. # (extra['backbone']['depth'] - client_backbone_block_num) + 1
-
-    # no_decay_group 관련 parameters
-    no_decay_name = ['pos_embed', 'norm', 'bias']
-
-    # lr_each_group 구성하기. (얘는 무조건 vit의 크기에 따라 달라짐.) # 얘는 client/server 상관 없이 그대로 둠.
-    lr_each_group = [cfg.TRAIN.LR * extra['backbone']['lr_decay_rate']**i for i in range(extra['backbone']['depth']+2)]
-    lr_each_group.insert(0,cfg.TRAIN.LR)
-    lr_each_group = lr_each_group[::-1]
-    
-    # param_group을 정의 - decay / no decay를 나누기 위함.
-    param_group = []
-    for i, group in enumerate(large_group_list): # 12 groups
-        no_decay_group = []
-        decay_group = []
-        for name in group:
-            if any([1 for n in no_decay_name if n in name]):
-                no_decay_group.append(name)
-            else:
-                decay_group.append(name)
-        if no_decay_group != []:
-            param_group.append(
-                {
-                    'params': [param for name, param in model.named_parameters() if name in no_decay_group], 
-                    'lr': lr_each_group[i + client_backbone_block_num + 1],
-                    'weight_decay': 0.0, 
-                    'param_names': no_decay_group, 
-                    'lr_scale': extra['backbone']['lr_decay_rate']**(len(large_group_list) - (i + client_backbone_block_num + 1)),
-                }
-            )
-        if decay_group != []: 
-            param_group.append(
-                {
-                    'params': [param for name, param in model.named_parameters() if name in decay_group], 
-                    'lr': lr_each_group[i + client_backbone_block_num + 1],
-                    'weight_decay': 0.1, 
-                    'param_names': decay_group, 
-                    'lr_scale': extra['backbone']['lr_decay_rate']**(len(large_group_list) - (i + client_backbone_block_num + 1)),
-                }
-            )
-            
-    # freeze를 위한 ...
-    freeze_list = []
-    if cfg.MODEL.FREEZE_NAME or cfg.MODEL.DIFF_NAME:
-        for name, param in model.named_parameters():
-            result_freeze = [True if i in name else False for i in cfg.MODEL.FREEZE_NAME]
-            if any(result_freeze):
-                param.requires_grad = False
-                freeze_list.append(name)
-    print(f"freeze list => ")
-    for name in freeze_list:
-        print(name)
-    
-    optimizer = optim.AdamW(param_group, betas=(0.9, 0.999), eps=1e-08, amsgrad=False)
-    return optimizer
-
-
-
-def get_vit_optimizer_general(cfg, model, extra):
-    
-    # large_group_list 구성하기.
-    large_group_list = [['backbone.pos_embed',
-                        'backbone.patch_embed.proj.weight',
-                        'backbone.patch_embed.proj.bias',],
-                        ] 
-    for i in range(extra['backbone']['depth']):
-        large_group_list.append([name for name, param in model.named_parameters() if f'blocks.{i}.' in name])
-
-    large_group_list.append([name for name, param in model.named_parameters() if 'keypoint_head' in name])
-    large_group_list.append([name for name, param in model.named_parameters() if 'uncertainty' in name])
-
-    # no_decay_group 관련 parameters
-    no_decay_name = ['pos_embed', 'norm', 'bias']
-
-    # lr_each_group 구성하기. (얘는 무조건 vit의 크기에 따라 달라짐.)
-    lr_each_group = [cfg.TRAIN.LR * extra['backbone']['lr_decay_rate']**i for i in range(extra['backbone']['depth']+2)]
-    lr_each_group.insert(0,cfg.TRAIN.LR)
-    lr_each_group = lr_each_group[::-1]
-
-    # --------------------------------- server / client를 위한 수정 -----------------------------------------
-    lr_scales = [extra['backbone']['lr_decay_rate']**(scale+1) for scale, _ in enumerate(large_group_list)]
-    lr_scales = lr_scales[::-1]
-    
-    # client / server에서 learning rate가 꼬이지 않게 하기 위해서 필요 없는 learning rate는와 group은 버림.
-    lr_each_group = [lr for i, lr in enumerate(lr_each_group) if large_group_list[i]]
-    lr_scales = [lr_scale for i, lr_scale in enumerate(lr_scales) if large_group_list[i]]
-    large_group_list = [group for group in large_group_list if group]
-
-    # ----------------------------------------------------------------------------------------------------
-
-    # param_group을 정의 - decay / no decay를 나누기 위함.
-    param_group = []
-    for i, group in enumerate(large_group_list):
-        no_decay_group = []
-        decay_group = []
-        for name in group:
-            if any([1 for n in no_decay_name if n in name]):
-                no_decay_group.append(name)
-            else:
-                decay_group.append(name)
-        if no_decay_group != []:
-            param_group.append({'params': [param for name, param in model.named_parameters() if name in no_decay_group], 
-                                'lr': lr_each_group[i], 
-                                'weight_decay': 0.0, 
-                                'param_names': no_decay_group, 
-                                'lr_scale': lr_scales[i], 
-                })
-        if decay_group != []: 
-            param_group.append({'params': [param for name, param in model.named_parameters() if name in decay_group], 
-                                'lr': lr_each_group[i], 
-                                'weight_decay': 0.1, 
-                                'param_names': decay_group, 
-                                'lr_scale': lr_scales[i], 
-                })
-            
-    # freeze를 위한 ...
-    freeze_list = []
-    if cfg.MODEL.FREEZE_NAME or cfg.MODEL.DIFF_NAME:
-        for name, param in model.named_parameters():
-            result_freeze = [True if i in name else False for i in cfg.MODEL.FREEZE_NAME]
-            if any(result_freeze):
-                param.requires_grad = False
-                freeze_list.append(name)
-    print(f"freeze list => ")
-    for name in freeze_list:
-        print(name)
-    
-    optimizer = optim.AdamW(param_group, betas=(0.9, 0.999), eps=1e-08, amsgrad=False)
-    return optimizer
-
-def get_grad_norm(model, loss):
-    grad_params = torch.autograd.grad(loss, model.parameters(), create_graph=True)
-    grad_norm = 0
-    for grad in grad_params:
-        grad_norm += grad.pow(2).sum()
-    grad_norm = grad_norm.sqrt()
-    return grad_norm 
-
 
 def save_checkpoint(states, output_dir, filename="checkpoint.pth.tar"):
     torch.save(states, os.path.join(output_dir, filename)) # resume를 위해서 모든 설정 저장.
@@ -540,21 +265,6 @@ def walk_through_dir(dir_path):
     """
     for dirpath, dirnames, filenames in os.walk(dir_path):
         print(f"There are {len(dirnames)} directories and {len(filenames)} images in '{dirpath}'.")
-
-
-def get_random_images(dataset, n: int = 10, seed: int = None):
-    if n > 10:
-        n = 10
-        print(
-            f"For display purposes, n shouldn't be larger than 10, setting to 10 and removing shape display."
-        )
-
-    if seed is not None:
-        random.seed(seed)
-
-    random_samples_idx = random.sample(range(len(dataset)), k=n)
-    return random_samples_idx
-
 
 def resize(
     input,
@@ -882,25 +592,6 @@ def load_checkpoint(
     
     print("mae success!!")
     return checkpoint
-
-def clone_parameters(
-    src: Union[OrderedDict[str, torch.Tensor], torch.nn.Module]
-    ) -> OrderedDict[str, torch.Tensor]:
-    # print(f"src type is {type(src)}")
-    if isinstance(src, OrderedDict):
-        return OrderedDict(
-            {
-                name: param.clone().detach().requires_grad_(param.requires_grad)
-                for name, param in src.items()
-            }
-        )
-    if isinstance(src, torch.nn.Module):
-        return OrderedDict(
-            {
-                name: param.clone().detach().requires_grad_(param.requires_grad)
-                for name, param in src.state_dict(keep_vars=True).items()
-            }
-        )
 
 def show_info(gpu, args, config):
     print(f"{'='*20} Info {'='*20}")

@@ -1,1 +1,0 @@
-from models.backbones.vit import ViT

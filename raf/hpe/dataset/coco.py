@@ -19,8 +19,8 @@ import numpy as np
 from pycocotools.coco import COCO
 from pycocotools.cocoeval import COCOeval
 
-from dataset.joints_dataset import JointsDataset
-from utils.nms import oks_nms
+from hpe.dataset.joints_dataset import JointsDataset
+from hpe.dataset.utils.nms import oks_nms
 
 
 logger = logging.getLogger(__name__)

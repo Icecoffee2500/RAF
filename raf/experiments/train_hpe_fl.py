@@ -6,23 +6,21 @@ import importlib
 
 # 현재 파일의 위치에서 프로젝트 루트까지의 경로 설정
 current_file = Path(__file__).resolve()
-project_root = current_file.parent.parent.parent  # raf/hpe/tools -> raf/hpe -> raf -> project_root
-hpe_dir = current_file.parent.parent.parent / "hpe"  # hpe 디렉토리
+project_root = current_file.parent.parent  # experiments -> raf -> project_root
 
-# sys.path.insert(0, str(raf_dir))
-sys.path.insert(0, str(hpe_dir))
+# raf를 top-level package로 사용하기 위해 project_root만 추가
 sys.path.insert(0, str(project_root))
 
 import torch
 from typing import Any
 
-from utils.utils import ShellColors as sc
-from core.config import config
-from core.config import get_model_name
+from hpe.utils.utils import ShellColors as sc
+from configs.hpe.config import config
+from configs.hpe.config import get_model_name
 
 # Type hint for config to allow dynamic attribute access
 config: Any = config
-from utils.utils import (
+from hpe.utils.utils import (
     save_checkpoint,
     create_logger_sfl,
     init_random_seed,
@@ -31,33 +29,57 @@ from utils.utils import (
     show_info,
     parse_args
 )
-from fed_server import FedServer
-from fl_client import FLClient
-from models.backbones.vit import ViT
-from models.heads.topdown_heatmap_simple_head import TopdownHeatmapSimpleHead
-from models.vit_pose import ViTPose
+from federated.server import FedServer
+from hpe.federated.client import FLClient
+from hpe.models import ViT
+from hpe.models import TopdownHeatmapSimpleHead
+from hpe.models import ViTPose
 
 def main(args):
     wdb = None
     if args.wandb:
-        import wandb
-        from datetime import datetime
-        
-        now = datetime.now()
-        today = now.strftime("%m%d_%H:%M")
-        
-        name = f"aggr-{args.fed}_loss_sacle-{args.loss_scale}_G{args.gnc_num}_{args.gnc_split_num*1000}_bs{args.gnc_train_bs}+P{args.prc_num}_{args.prc_split_num*1000}_bs{args.prc_train_bs}_alpha={args.kd_alpha}"
-        name += "_res"
-        for res in args.gnc_res:
-            name += f"_{res}"
-
-        name += f"_{today}"
-        wdb = wandb
-        wdb.init(
-            config=config,
-            project="RAF-refactoring",
-            name = name,
-        )
+        try:
+            import wandb
+            from datetime import datetime
+            
+            now = datetime.now()
+            today = now.strftime("%m%d_%H:%M")
+            
+            name = f"aggr-{args.fed}_loss_sacle-{args.loss_scale}_G{args.gnc_num}_{args.gnc_split_num*1000}_bs{args.gnc_train_bs}+P{args.prc_num}_{args.prc_split_num*1000}_bs{args.prc_train_bs}_alpha={args.kd_alpha}"
+            name += "_res"
+            for res in args.gnc_res:
+                name += f"_{res}"
+            name += f"_{today}"
+            
+            # wandb 초기화 시도
+            wdb = wandb
+            
+            # config를 dict로 변환하여 wandb에 안전하게 전달
+            try:
+                # EasyDict를 일반 dict로 변환
+                wandb_config = dict(config) if hasattr(config, '__dict__') else {}
+            except:
+                # 변환 실패 시 주요 설정만 수동으로 전달
+                wandb_config = {
+                    "model_name": config.MODEL.NAME if hasattr(config, 'MODEL') else "unknown",
+                    "batch_size": args.gnc_train_bs,
+                    "fed_method": args.fed,
+                    "kd_alpha": args.kd_alpha,
+                    "loss_scale": args.loss_scale,
+                }
+            
+            wdb.init(
+                project="RAF-refactoring",
+                name=name,
+                config=wandb_config,
+                mode="online",  # "offline"로 변경하면 로컬에서만 로깅
+            )
+            print(f"{sc.COLOR_GREEN}WandB 초기화 성공{sc.ENDC}")
+            
+        except Exception as e:
+            print(f"{sc.COLOR_RED}WandB 초기화 실패: {e}{sc.ENDC}")
+            print(f"{sc.COLOR_YELLOW}WandB 없이 실행을 계속합니다{sc.ENDC}")
+            wdb = None
     
     config.DATASET.AUGMENTATION = args.data_aug
     config.DATASET.SAME_POS = True if args.same_pos else False
@@ -179,9 +201,9 @@ def main(args):
 
     # 동적 import를 위한 config 파일 매핑
     config_mapping = {
-        "small": "configs.extra.vit_small_uncertainty_config",
-        "large": "configs.extra.vit_large_uncertainty_config", 
-        "huge": "configs.extra.vit_huge_uncertainty_config"
+        "small": "configs.hpe.extra.vit_small_uncertainty_config",
+        "large": "configs.hpe.extra.vit_large_uncertainty_config", 
+        "huge": "configs.hpe.extra.vit_huge_uncertainty_config"
     }
     
     # args.cfg에서 적절한 config 모듈 찾기

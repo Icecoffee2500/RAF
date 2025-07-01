@@ -17,12 +17,12 @@ import numpy as np
 import torch
 from torch.utils.data import Dataset
 
-from utils.transforms import get_affine_transform
-from utils.transforms import affine_transform
-from utils.transforms import fliplr_joints
-from utils.post_transforms import get_warp_matrix
-from utils.post_transforms import warp_affine_joints
-from utils.io import imfrombytes
+from hpe.dataset.utils.transforms import get_affine_transform
+from hpe.dataset.utils.transforms import affine_transform
+from hpe.dataset.utils.transforms import fliplr_joints
+from hpe.dataset.utils.post_transforms import get_warp_matrix
+from hpe.dataset.utils.post_transforms import warp_affine_joints
+from common.io import imfrombytes
 from typing import Tuple, Dict, Any, Union
 from abc import ABC, abstractmethod
 

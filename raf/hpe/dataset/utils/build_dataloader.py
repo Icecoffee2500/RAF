@@ -3,7 +3,7 @@ from typing import Type, Any
 from torch.utils.data import DataLoader
 # from torch.utils.data.distributed import DistributedSampler
 
-from dataset.dataset_split import build_split_union_dataset, build_splitted_dataset
+from hpe.dataset.utils.dataset_split import build_split_union_dataset, build_splitted_dataset
 
 def build_split_union_dataloader(
     config: dict,

@@ -1,17 +1,23 @@
 import sys
 import os
 import numpy as np
+from pathlib import Path
+import importlib
 
-home_dir = os.path.dirname(os.path.abspath(__file__ + "/../"))
-sys.path.append(os.path.join(home_dir, "lib"))
-sys.path.append(home_dir)
+# 현재 파일의 위치에서 프로젝트 루트까지의 경로 설정
+current_file = Path(__file__).resolve()
+project_root = current_file.parent.parent  # experiments -> raf -> project_root
+
+# raf를 top-level package로 사용하기 위해 project_root만 추가
+sys.path.insert(0, str(project_root))
 
 import torch
+from typing import Any
 
-from lib.utils.utils import ShellColors as sc
-from lib.core.config import config
-from lib.core.config import get_model_name
-from lib.utils.utils import (
+from hpe.utils.utils import ShellColors as sc
+from configs.hpe.config import config
+from configs.hpe.config import get_model_name
+from hpe.utils.utils import (
     save_checkpoint,
     create_logger_sfl,
     init_random_seed,
@@ -20,11 +26,14 @@ from lib.utils.utils import (
     show_info,
     parse_args
 )
-from tools.fed_server import FedServer
-from fl_client import FLClient
-from lib.models.backbones.vit import ViT
-from lib.models.heads import TopdownHeatmapSimpleHead
-from lib.models.vit_pose import ViTPose
+from federated.server import FedServer
+from hpe.train.client import FLClient
+from hpe.models.vit import ViT
+from hpe.models.topdown_heatmap_simple_head import TopdownHeatmapSimpleHead
+from hpe.models.vit_pose import ViTPose
+
+# Type hint for config to allow dynamic attribute access
+config: Any = config
 
 def main(args):
     wdb = None
@@ -102,14 +111,27 @@ def main(args):
     print("------------- config heatmap size ---------------------")
     print(config.MODEL.HEATMAP_SIZE)
 
+    # 동적 import 수행 (config 파일명에서 모듈명 추출)
+    config_module_name = None
     if "small" in args.cfg:
-        from lib.models.extra.vit_small_uncertainty_config import extra
+        config_module_name = "configs.hpe.extra.vit_small_uncertainty_config"
     elif "large" in args.cfg:
-        from lib.models.extra.vit_large_uncertainty_config import extra
+        config_module_name = "configs.hpe.extra.vit_large_uncertainty_config"
     elif "huge" in args.cfg:
-        from lib.models.extra.vit_huge_uncertainty_config import extra
-    else:
-        raise FileNotFoundError(f"Check config file name!!")
+        config_module_name = "configs.hpe.extra.vit_huge_uncertainty_config"
+    
+    if config_module_name is None:
+        raise FileNotFoundError(f"Check config file name: {args.cfg}")
+    
+    # 동적 import 수행
+    try:
+        config_module = importlib.import_module(config_module_name)
+        extra = config_module.extra
+    except ImportError as e:
+        raise ImportError(f"Failed to import {config_module_name}: {e}")
+    
+    # Type hint for extra to allow dynamic attribute access
+    extra: Any = extra
 
     res_arg = ""
     for res in args.gnc_res:
@@ -123,7 +145,7 @@ def main(args):
     logger.info(f"Set random seed to {seed}")
     set_random_seed(seed)
     
-    pretrained_path = os.path.join(home_dir, args.pretrained)
+    pretrained_path = project_root / args.pretrained
     
     device = torch.device(f"cuda:{args.gpu}" if torch.cuda.is_available() else "cpu")
     torch.cuda.set_device(device)
@@ -165,7 +187,7 @@ def main(args):
     global_fl_model = ViTPose(backbone, deconv_head)
     
     # fl client model weight initialization
-    if "mae" in pretrained_path:
+    if "mae" in str(pretrained_path):
         load_checkpoint(global_fl_model, pretrained_path)
     
     # global fl model -> gpu

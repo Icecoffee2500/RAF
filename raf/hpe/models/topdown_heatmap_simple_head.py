@@ -3,9 +3,9 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-from utils.utils import resize, normal_init, constant_init
-from utils.post_processing import flip_back
-from models.heads.topdown_heatmap_base_head import TopdownHeatmapBaseHead
+from hpe.utils.utils import resize, normal_init, constant_init
+from hpe.models.topdown_heatmap_base_head import TopdownHeatmapBaseHead
+from hpe.dataset.utils.post_processing import flip_back
 
 
 class TopdownHeatmapSimpleHead(TopdownHeatmapBaseHead):

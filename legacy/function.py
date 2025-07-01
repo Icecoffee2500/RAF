@@ -20,12 +20,12 @@ from torch.nn.utils import clip_grad
 from torch.amp import autocast, GradScaler
 from datetime import datetime
 
-from lib.core.config import get_model_name
-from lib.core.evaluate import accuracy
-from lib.core.inference import get_final_preds
-from lib.utils.vis import save_debug_images
-from lib.core.inference import post_dark_udp
-from lib.core.inference import get_max_preds
+from hpe.core.config import get_model_name
+from hpe.core.evaluate import accuracy
+from hpe.core.inference import get_final_preds
+from hpe.utils.vis import save_debug_images
+from hpe.core.inference import post_dark_udp
+from hpe.core.inference import get_max_preds
 
 import torch.nn.functional as F
 

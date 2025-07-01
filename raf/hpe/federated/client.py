@@ -1,34 +1,29 @@
-import sys, os
-home_dir = os.path.dirname(os.path.abspath(f"{__file__}/../"))
-sys.path.append(os.path.join(home_dir, "lib"))
-sys.path.append(home_dir)
-
+# Works as a local trainer
 from torch.utils.data import DataLoader
 import torchvision.transforms as transforms
-from dataset.coco import COCODataset
-from dataset.mpii import MPIIDataset
 
-from core.config import get_model_name
 import torch
-from utils.average_meter import AverageMeter
+import torch.nn.functional as F
+from torch.nn.utils import clip_grad
 from datetime import datetime
 import time
 import logging
 import numpy as np
-
 from copy import deepcopy
 
-from core.scheduler import MultistepWarmUpRestargets
-from dataset.build_dataloader import build_split_dataloader
-from utils.utils import get_vit_optimizer # 이건 왜 여기에 들어가있음?
-from utils.utils import get_loss # 이건 왜 여기에 들어가있음?
-from torch.nn.utils import clip_grad
-from core.evaluate import accuracy
-from utils.timer import gpu_timer
-from utils.utils import ShellColors as sc
-import torch.nn.functional as F
-from core.inference import get_final_preds
-from models.losses.mse_loss import JointsKLDLoss
+from configs.hpe.config import get_model_name
+from hpe.utils.average_meter import AverageMeter
+from hpe.utils.scheduler import MultistepWarmUpRestargets
+from hpe.dataset.utils.build_dataloader import build_split_dataloader
+from hpe.dataset.utils.evaluate import accuracy
+from hpe.dataset.coco import COCODataset
+from hpe.dataset.mpii import MPIIDataset
+from hpe.utils.utils import get_vit_optimizer # 이건 왜 여기에 들어가있음?
+from hpe.utils.utils import get_loss # 이건 왜 여기에 들어가있음?
+from hpe.utils.timer import gpu_timer
+from hpe.utils.utils import ShellColors as sc
+from hpe.dataset.utils.post_processing import get_final_preds
+from hpe.federated.loss_fns import JointsKLDLoss
 
 class FLClient:
     def __init__(

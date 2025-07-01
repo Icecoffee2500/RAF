@@ -4,12 +4,12 @@ import numpy as np
 import torch
 import random
 
-from utils.transforms import fliplr_joints
-from utils.post_transforms import get_warp_matrix
-from utils.post_transforms import warp_affine_joints
-from utils.transforms import get_affine_transform
-from utils.transforms import affine_transform
-from utils.io import imfrombytes
+from hpe.dataset.utils.transforms import fliplr_joints
+from hpe.dataset.utils.post_transforms import get_warp_matrix
+from hpe.dataset.utils.post_transforms import warp_affine_joints
+from hpe.dataset.utils.transforms import get_affine_transform
+from hpe.dataset.utils.transforms import affine_transform
+from common.io import imfrombytes
 
 class LoadImageFromFile:
     """Loading image(s) from file.
