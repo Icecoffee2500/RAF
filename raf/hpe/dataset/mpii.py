@@ -15,12 +15,7 @@ import json_tricks as json
 
 import numpy as np
 from scipy.io import loadmat, savemat
-
-# from lib.dataset.joints_dataset import JointsDataset
-# from lib.dataset.joints_dataset_new import JointsDataset
-# from lib.dataset.joints_dataset_new_future import JointsDataset
-# from lib.dataset.joints_dataset_new_future_future import JointsDataset
-from hpe.dataset.joints_dataset_new_future_future_imhm_size import JointsDataset
+from hpe.dataset.joints_dataset import JointsDataset
 
 
 logger = logging.getLogger(__name__)

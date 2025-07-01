@@ -52,8 +52,8 @@ class COCODataset(JointsDataset):
         [7,9],[8,10],[9,11],[2,3],[1,2],[1,3],[2,4],[3,5],[4,6],[5,7]]
     """
 
-    def __init__(self, cfg, root, image_set, is_train, dataset_idx=0, transform=None):
-        super().__init__(cfg, root, image_set, is_train, dataset_idx, transform)
+    def __init__(self, cfg, root, image_set, image_size, heatmap_size, is_train, dataset_idx=0, transform=None):
+        super().__init__(cfg, root, image_set, image_size, heatmap_size, is_train, transform)
         self.nms_thre = cfg.TEST.NMS_THRE
         self.image_thre = cfg.TEST.IMAGE_THRE
         self.oks_thre = cfg.TEST.OKS_THRE
@@ -63,17 +63,15 @@ class COCODataset(JointsDataset):
         )
         self.use_gt_bbox = cfg.TEST.USE_GT_BBOX
 
-        # print(f"IMAGE SIZE TYPE => {type(cfg.MODEL.IMAGE_SIZE[0])}")
-        if isinstance(cfg.MODEL.IMAGE_SIZE[0], (np.ndarray, list)):
-            print("coco_py clear")
-            self.image_width = cfg.MODEL.IMAGE_SIZE[0][0]
-            self.image_height = cfg.MODEL.IMAGE_SIZE[0][1]
+        if isinstance(self.image_size[0], (np.ndarray, list)):
+            print("multi resolution dataset")
+            self.image_width = int(self.image_size[0][0])  # type: ignore
+            self.image_height = int(self.image_size[0][1])  # type: ignore
         else:
-            self.image_width = cfg.MODEL.IMAGE_SIZE[0]
-            self.image_height = cfg.MODEL.IMAGE_SIZE[1]
+            self.image_width = int(self.image_size[0])  # type: ignore
+            self.image_height = int(self.image_size[1])  # type: ignore
         # self.use_udp = cfg.TEST.USE_UDP
-        self.aspect_ratio = self.image_width * 1.0 / self.image_height
-        # print(f"aspect ratio => {self.aspect_ratio}")
+        self.aspect_ratio = self.image_width / self.image_height
         # self.pixel_std = 200
         self.det_bbox_thr = 0.0
         self.coco = COCO(self._get_ann_file_keypoint())

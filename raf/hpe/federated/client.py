@@ -119,6 +119,62 @@ class FLClient:
                 num_workers=config.WORKERS,
                 pin_memory=True,
             )
+        
+        # # COCO
+        # if is_proxy:
+        #     self.train_loader = build_split_dataloader(
+        #     config=config,
+        #     dataset_class=COCODataset,
+        #     dataset_idx=idx,
+        #     root=config.DATASET.ROOT,
+        #     image_set=config.DATASET.TRAIN_SET,
+        #     image_size=im_size,
+        #     heatmap_size=hm_size,
+        #     is_train=True,
+        #     # split_data=False,
+        #     split_size=split_size,
+        #     split_data=True,
+        #     batch_size=batch_size
+        # )
+        # else:
+        #     self.train_loader = build_split_dataloader(
+        #         config=config,
+        #         dataset_class=COCODataset,
+        #         dataset_idx=idx,
+        #         root=config.DATASET.ROOT,
+        #         image_set=config.DATASET.TRAIN_SET,
+        #         image_size=im_size,
+        #         heatmap_size=hm_size,
+        #         is_train=True,
+        #         split_size=split_size,
+        #         split_data=True,
+        #         batch_size=batch_size
+        #     )
+        
+        # if is_proxy == False:
+        #     self.valid_dataset = COCODataset(
+        #         cfg=config,
+        #         # root=config.DATASET_SETS[idx].ROOT,
+        #         root=config.DATASET.ROOT,
+        #         image_set=config.DATASET.TEST_SET,
+        #         image_size=im_size[0] if isinstance(im_size[0], (np.ndarray, list)) else im_size,
+        #         heatmap_size=hm_size[0] if isinstance(hm_size[0], (np.ndarray, list)) else hm_size,
+        #         is_train=False,
+        #         transform=transforms.Compose(
+        #             [
+        #                 transforms.ToTensor(),
+        #                 normalize,
+        #             ]
+        #         ),
+        #     )
+            
+        #     self.valid_loader = DataLoader(
+        #         self.valid_dataset,
+        #         batch_size=config.TEST.BATCH_SIZE,
+        #         shuffle=False,
+        #         num_workers=config.WORKERS,
+        #         pin_memory=True,
+        #     )
     
     def train_single_resolution(self, epoch):
         batch_time = AverageMeter()

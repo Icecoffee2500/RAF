@@ -10,20 +10,20 @@ PRINT_FREQ: 100
 
 DATASET_SETS:
   -
-    DATASET: 'coco_split_0'
-    ROOT: 'data/coco_split_0/'
-    TEST_SET: 'val2017_split'
-    TRAIN_SET: 'train2017_split_0'
+    DATASET: 'coco'
+    ROOT: 'data/coco/'
+    TEST_SET: 'val2017'
+    TRAIN_SET: 'train2017'
   -
-    DATASET: 'coco_split_1'
-    ROOT: 'data/coco_split_1/'
-    TEST_SET: 'val2017_split'
-    TRAIN_SET: 'train2017_split_1'
+    DATASET: 'coco'
+    ROOT: 'data/coco/'
+    TEST_SET: 'val2017'
+    TRAIN_SET: 'train2017'
   -
-    DATASET: 'coco_split_2'
-    ROOT: 'data/coco_split_2/'
-    TEST_SET: 'val2017_split'
-    TRAIN_SET: 'train2017_split_2'
+    DATASET: 'coco'
+    ROOT: 'data/coco/'
+    TEST_SET: 'val2017'
+    TRAIN_SET: 'train2017'
 
 
 DATASET_PROXY:
@@ -35,9 +35,9 @@ DATASET_PROXY:
 
 DATASET:
   DATASET: 'coco'
-  ROOT: 'data/coco_split_0/'
-  # TEST_SET: 'val2017_split'
-  # TRAIN_SET: 'train2017_split'
+  ROOT: 'data/coco/'
+  TEST_SET: 'val2017'
+  TRAIN_SET: 'train2017'
   FLIP: true
   ROT_FACTOR: 40
   SCALE_FACTOR: 0.5
