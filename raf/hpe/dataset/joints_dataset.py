@@ -16,16 +16,17 @@ from torch.utils.data import Dataset
 
 from typing import Union
 from abc import ABC, abstractmethod
-from hpe.dataset.utils.pipelines_future import (
+from hpe.dataset.utils.pipelines import (
     TopDownGetRandomScaleRotation,
     TopDownRandomFlip,
     RandomShiftBboxCenter,
     TopDownHalfBodyTransform,
     TopDownAffine,
     TopDownGenerateHeatmap,
-    LoadImageFromFile
+    LoadImageFromFile,
+    ToTensor,
+    NormalizeTensor
     )
-from hpe.dataset.utils.shared_transform import ToTensor, NormalizeTensor
 
 logger = logging.getLogger(__name__)
 
