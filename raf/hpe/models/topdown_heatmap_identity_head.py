@@ -1,7 +1,7 @@
 import numpy as np
 import torch.nn as nn
 
-from dataset.utils.post_processing import flip_back
+from hpe.utils.post_processing import flip_back
 
 
 class TopdownHeatmapIdentityHead(nn.Module):

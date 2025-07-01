@@ -12,8 +12,7 @@ import numpy as np
 import warnings
 import cv2
 
-from hpe.dataset.utils.post_processing import get_max_preds, post_dark_udp
-from hpe.dataset.utils.post_transforms import transform_preds
+from hpe.utils.post_processing import get_max_preds, post_dark_udp
 
 
 def calc_dists(preds, target, normalize):

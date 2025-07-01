@@ -21,13 +21,8 @@ from configs.hpe.config import get_model_name
 # Type hint for config to allow dynamic attribute access
 config: Any = config
 from hpe.utils.utils import (
-    save_checkpoint,
-    create_logger_sfl,
-    init_random_seed,
-    set_random_seed,
-    load_checkpoint,
-    show_info,
-    parse_args
+    save_checkpoint, create_logger_sfl, init_random_seed, set_random_seed,
+    load_checkpoint, show_info, parse_args
 )
 from federated.server import FedServer
 from hpe.federated.client import FLClient
@@ -45,7 +40,7 @@ def main(args):
             now = datetime.now()
             today = now.strftime("%m%d_%H:%M")
             
-            name = f"aggr-{args.fed}_loss_sacle-{args.loss_scale}_G{args.gnc_num}_{args.gnc_split_num*1000}_bs{args.gnc_train_bs}+P{args.prc_num}_{args.prc_split_num*1000}_bs{args.prc_train_bs}_alpha={args.kd_alpha}"
+            name = f"aggr-{args.fed}_loss_sacle-{args.loss_scale}_G{args.gnc_num}_{args.gnc_split_num}_bs{args.gnc_train_bs}+P{args.prc_num}_{args.prc_split_num*1000}_bs{args.prc_train_bs}_alpha={args.kd_alpha}"
             name += "_res"
             for res in args.gnc_res:
                 name += f"_{res}"
@@ -290,7 +285,7 @@ def main(args):
     for idx in range(args.gnc_num):
         fl_clients.append(
             FLClient(
-                idx=idx, # dataset의 index
+                client_id=idx, # dataset의 index
                 config=config,
                 device=device,
                 init_model=global_fl_model,
@@ -299,9 +294,9 @@ def main(args):
                 logger=logger,
                 im_size=config.MODEL.IMAGE_SIZE[idx],
                 hm_size=config.MODEL.HEATMAP_SIZE[idx],
-                split_size=args.gnc_split_num,
                 batch_size=args.gnc_train_bs,
                 is_proxy=False,
+                samples_per_split=args.gnc_split_num,
             )
         )
     
@@ -323,7 +318,7 @@ def main(args):
         for i in range(args.prc_num):
             fl_pr_clients.append(
                 FLClient(
-                    idx=int(22 / args.prc_split_num) - 1 - i, # prc의 index는 거꾸로
+                    client_id=int(22 / args.prc_split_num) - 1 - i, # prc의 index는 거꾸로
                     config=config,
                     device=device,
                     init_model=global_fl_model,
@@ -332,9 +327,9 @@ def main(args):
                     logger=logger,
                     im_size=proxy_client_im_size,
                     hm_size=proxy_client_hm_size,
-                    split_size=args.prc_split_num,
                     batch_size=args.prc_train_bs,
                     is_proxy=True,
+                    samples_per_split=args.prc_split_num,
                 )
             )
     

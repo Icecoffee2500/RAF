@@ -14,21 +14,21 @@ from copy import deepcopy
 from configs.hpe.config import get_model_name
 from hpe.utils.average_meter import AverageMeter
 from hpe.utils.scheduler import MultistepWarmUpRestargets
-from hpe.dataset.utils.build_dataloader import build_split_dataloader
-from hpe.dataset.utils.evaluate import accuracy
-from hpe.dataset.coco import COCODataset
-from hpe.dataset.mpii import MPIIDataset
+from hpe.dataset.utils.builder import build_train_val_dataloader, build_split_dataset
+from hpe.utils.evaluate import accuracy
+from hpe.dataset.coco import COCODataset as coco
+from hpe.dataset.mpii import MPIIDataset as mpii
 from hpe.utils.utils import get_vit_optimizer # 이건 왜 여기에 들어가있음?
 from hpe.utils.utils import get_loss # 이건 왜 여기에 들어가있음?
 from hpe.utils.timer import gpu_timer
 from hpe.utils.utils import ShellColors as sc
-from hpe.dataset.utils.post_processing import get_final_preds
+from hpe.utils.post_processing import get_final_preds
 from hpe.federated.loss_fns import JointsKLDLoss
 
 class FLClient:
     def __init__(
         self,
-        idx,
+        client_id,
         config,
         device,
         init_model,
@@ -37,11 +37,11 @@ class FLClient:
         logger,
         im_size,
         hm_size,
-        split_size,
         batch_size,
-        is_proxy=False
+        is_proxy=False,
+        samples_per_split=0,
     ):
-        self.idx = idx
+        self.client_id = client_id
         self.config = config
         self.logger = logger
         self.device = device
@@ -64,117 +64,43 @@ class FLClient:
         # Data loading code
         normalize = transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
         
-        # Data loading code
-        if is_proxy:
-            self.train_loader = build_split_dataloader(
-            config=config,
-            dataset_class=MPIIDataset,
-            dataset_idx=idx,
+        if config.DATASET.DATASET == 'coco':
+            dataset_class = coco
+        elif config.DATASET.DATASET == 'mpii':
+            dataset_class = mpii
+        else:
+            raise ValueError(f"Invalid dataset: {config.DATASET.DATASET}")
+        
+        # ------------------------------------------------------------------------------
+        # 나중에 hydra config의 instantiate 함수로 대체할 것.
+        # ------------------------------------------------------------------------------
+        train_dataset = dataset_class(
+            cfg=config,
             root=config.DATASET.ROOT,
             image_set=config.DATASET.TRAIN_SET,
             image_size=im_size,
             heatmap_size=hm_size,
             is_train=True,
-            # split_data=False,
-            split_size=split_size,
-            split_data=True,
-            batch_size=batch_size
+            transform=transforms.Compose([transforms.ToTensor(), normalize]),
         )
-        else:
-            self.train_loader = build_split_dataloader(
-                config=config,
-                dataset_class=MPIIDataset,
-                dataset_idx=idx,
-                root=config.DATASET.ROOT,
-                image_set=config.DATASET.TRAIN_SET,
-                image_size=im_size,
-                heatmap_size=hm_size,
-                is_train=True,
-                split_size=split_size,
-                split_data=True,
-                batch_size=batch_size
-            )
+        if samples_per_split > 0:
+            train_dataset = build_split_dataset(
+                train_dataset, dataset_idx=self.client_id, samples_per_split=samples_per_split)
         
-        if is_proxy == False:
-            self.valid_dataset = MPIIDataset(
-                cfg=config,
-                # root=config.DATASET_SETS[idx].ROOT,
-                root=config.DATASET.ROOT,
-                image_set=config.DATASET.TEST_SET,
-                image_size=im_size[0] if isinstance(im_size[0], (np.ndarray, list)) else im_size,
-                heatmap_size=hm_size[0] if isinstance(hm_size[0], (np.ndarray, list)) else hm_size,
-                is_train=False,
-                transform=transforms.Compose(
-                    [
-                        transforms.ToTensor(),
-                        normalize,
-                    ]
-                ),
-            )
-            
-            self.valid_loader = DataLoader(
-                self.valid_dataset,
-                batch_size=config.TEST.BATCH_SIZE,
-                shuffle=False,
-                num_workers=config.WORKERS,
-                pin_memory=True,
-            )
+        self.valid_dataset = dataset_class(
+            cfg=config,
+            root=config.DATASET.ROOT,
+            image_set=config.DATASET.TEST_SET,
+            image_size=im_size[0] if isinstance(im_size[0], (np.ndarray, list)) else im_size,
+            heatmap_size=hm_size[0] if isinstance(hm_size[0], (np.ndarray, list)) else hm_size,
+            is_train=False,
+            transform=transforms.Compose([transforms.ToTensor(), normalize]),
+        )
         
-        # # COCO
-        # if is_proxy:
-        #     self.train_loader = build_split_dataloader(
-        #     config=config,
-        #     dataset_class=COCODataset,
-        #     dataset_idx=idx,
-        #     root=config.DATASET.ROOT,
-        #     image_set=config.DATASET.TRAIN_SET,
-        #     image_size=im_size,
-        #     heatmap_size=hm_size,
-        #     is_train=True,
-        #     # split_data=False,
-        #     split_size=split_size,
-        #     split_data=True,
-        #     batch_size=batch_size
-        # )
-        # else:
-        #     self.train_loader = build_split_dataloader(
-        #         config=config,
-        #         dataset_class=COCODataset,
-        #         dataset_idx=idx,
-        #         root=config.DATASET.ROOT,
-        #         image_set=config.DATASET.TRAIN_SET,
-        #         image_size=im_size,
-        #         heatmap_size=hm_size,
-        #         is_train=True,
-        #         split_size=split_size,
-        #         split_data=True,
-        #         batch_size=batch_size
-        #     )
+        self.train_loader, self.valid_loader = build_train_val_dataloader(
+            train_dataset, self.valid_dataset,
+            list([config.TRAIN.BATCH_SIZE, config.TEST.BATCH_SIZE]), config.WORKERS)
         
-        # if is_proxy == False:
-        #     self.valid_dataset = COCODataset(
-        #         cfg=config,
-        #         # root=config.DATASET_SETS[idx].ROOT,
-        #         root=config.DATASET.ROOT,
-        #         image_set=config.DATASET.TEST_SET,
-        #         image_size=im_size[0] if isinstance(im_size[0], (np.ndarray, list)) else im_size,
-        #         heatmap_size=hm_size[0] if isinstance(hm_size[0], (np.ndarray, list)) else hm_size,
-        #         is_train=False,
-        #         transform=transforms.Compose(
-        #             [
-        #                 transforms.ToTensor(),
-        #                 normalize,
-        #             ]
-        #         ),
-        #     )
-            
-        #     self.valid_loader = DataLoader(
-        #         self.valid_dataset,
-        #         batch_size=config.TEST.BATCH_SIZE,
-        #         shuffle=False,
-        #         num_workers=config.WORKERS,
-        #         pin_memory=True,
-        #     )
     
     def train_single_resolution(self, epoch):
         batch_time = AverageMeter()
@@ -207,7 +133,7 @@ class FLClient:
             
             # logging
             self._log_while_training(
-                idx=self.idx,
+                idx=self.client_id,
                 epoch=epoch,
                 epoch_start_time=epoch_start_time,
                 logger=self.logger,
@@ -305,7 +231,7 @@ class FLClient:
             
             # logging
             self._log_while_training(
-                idx=self.idx,
+                idx=self.client_id,
                 epoch=epoch,
                 epoch_start_time=epoch_start_time,
                 logger=self.logger,
@@ -564,9 +490,9 @@ class FLClient:
             )
 
             if wdb:
-                wdb.log({f"[Client {self.idx}] performance": perf_indicator})
-                wdb.log({f"[Client {self.idx}] loss_valid": self.losses.avg})
-                wdb.log({f"[Client {self.idx}] acc_valid": self.acc.avg})
+                wdb.log({f"[Client {self.client_id}] performance": perf_indicator})
+                wdb.log({f"[Client {self.client_id}] loss_valid": self.losses.avg})
+                wdb.log({f"[Client {self.client_id}] acc_valid": self.acc.avg})
 
             
             _, full_arch_name = get_model_name(self.config)

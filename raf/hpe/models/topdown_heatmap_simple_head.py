@@ -5,7 +5,7 @@ import torch.nn.functional as F
 
 from hpe.utils.utils import resize, normal_init, constant_init
 from hpe.models.topdown_heatmap_base_head import TopdownHeatmapBaseHead
-from hpe.dataset.utils.post_processing import flip_back
+from hpe.utils.post_processing import flip_back
 
 
 class TopdownHeatmapSimpleHead(TopdownHeatmapBaseHead):

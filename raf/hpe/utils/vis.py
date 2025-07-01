@@ -16,7 +16,7 @@ import cv2
 import random
 import matplotlib.pyplot as plt
 
-from hpe.dataset.utils.post_processing import get_max_preds
+from hpe.utils.post_processing import get_max_preds
 
 coco_info = {
     "K_NAMES": [
