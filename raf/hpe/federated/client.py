@@ -12,16 +12,14 @@ import numpy as np
 from copy import deepcopy
 
 from configs.hpe.config import get_model_name
-from hpe.utils.average_meter import AverageMeter
-from hpe.utils.scheduler import MultistepWarmUpRestargets
+from hpe.utils.training_utils import AverageMeter, gpu_timer
+from hpe.federated.scheduler import MultistepWarmUpRestargets
 from hpe.dataset.utils.builder import build_train_val_dataloader, build_split_dataset
 from hpe.utils.evaluate import accuracy
 from hpe.dataset.coco import COCODataset as coco
 from hpe.dataset.mpii import MPIIDataset as mpii
-from hpe.utils.utils import get_vit_optimizer # 이건 왜 여기에 들어가있음?
-from hpe.utils.utils import get_loss # 이건 왜 여기에 들어가있음?
-from hpe.utils.timer import gpu_timer
-from hpe.utils.utils import ShellColors as sc
+from hpe.utils.model_utils import get_vit_optimizer, get_loss
+from hpe.utils.logging import ShellColors as sc
 from hpe.utils.post_processing import get_final_preds
 from hpe.federated.loss_fns import JointsKLDLoss
 
@@ -417,7 +415,7 @@ class FLClient:
                 # Flip Test
                 if self.config.TEST.FLIP_TEST:
                     img_flipped = img.flip(3).cuda()
-                    features_flipped, _ = backbone(img_flipped)
+                    features_flipped= backbone(img_flipped)
                     
                     output_flipped_heatmap = keypoint_head.inference_model(
                         features_flipped, meta["flip_pairs"]

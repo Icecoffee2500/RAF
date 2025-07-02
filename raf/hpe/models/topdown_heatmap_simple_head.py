@@ -4,7 +4,8 @@ import torch.nn as nn
 import torch.nn.functional as F
 from abc import ABCMeta, abstractmethod
 
-from hpe.utils.utils import resize, normal_init, constant_init
+from hpe.utils.misc_utils import resize
+from hpe.utils.model_utils import normal_init, constant_init
 from hpe.utils.post_processing import flip_back
 
 

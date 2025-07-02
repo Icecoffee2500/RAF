@@ -6,6 +6,26 @@
 
 import torch
 
+
+class AverageMeter(object):
+    """Computes and stores the average and current value"""
+
+    def __init__(self):
+        self.reset()
+
+    def reset(self):
+        self.val = 0
+        self.avg = 0
+        self.sum = 0
+        self.count = 0
+
+    def update(self, val, n=1):
+        self.val = val
+        self.sum += val * n
+        self.count += n
+        self.avg = self.sum / self.count if self.count != 0 else 0
+
+
 def gpu_timer(closure, log_timings=True):
     """ Helper to time gpu-time to execute closure() """
     log_timings = log_timings and torch.cuda.is_available()
@@ -24,4 +44,4 @@ def gpu_timer(closure, log_timings=True):
         elapsed_time = start.elapsed_time(end)
         elapsed_time = elapsed_time / 1000
 
-    return elapsed_time
+    return elapsed_time 

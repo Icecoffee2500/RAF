@@ -210,42 +210,6 @@ def save_debug_images(config, input, meta, target, joints_pred, output, prefix):
         )
 
 
-def display_random_images(dataset, n: int = 10, seed: int = None):
-    if n > 10:
-        n = 10
-        print(
-            f"For display purposes, n shouldn't be larger than 10, setting to 10 and removing shape display."
-        )
-
-    if seed is not None:
-        random.seed(seed)
-
-    random_samples_idx = random.sample(range(len(dataset)), k=n)
-    fig = plt.figure(figsize=(16, 9))
-
-    n_rows = 2
-    n_cols = len(random_samples_idx)
-    for row in range(n_rows):
-        for col, rand_sample in enumerate(random_samples_idx):
-            img_path = dataset[rand_sample][3]["image"]
-            img_name = str(img_path).split(".")[0].split("/")[-1]
-
-            ax = fig.add_subplot(n_rows, n_cols, row * n_cols + col + 1)
-            if row == 0:
-                img = cv2.imread(img_path)
-                img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
-            else:
-                img = dataset[rand_sample][0]
-                img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
-
-            ax.imshow(img)
-            ax.axis("off")
-            title = f"name: {img_name}"
-            title = title + f"\nshape: {img.shape}"
-            plt.title(title)
-
-    return random_samples_idx
-
 
 def display_images(dataset, indexes, show_keypoints=False, show_text=False):
     fig = plt.figure(figsize=(16, 9))
@@ -312,9 +276,6 @@ def display_image(input_image):
     plt.imshow(image)
     plt.axis("off")
 
-
-def display_annotation():
-    pass
 
 
 def display_keypoints(
@@ -446,39 +407,3 @@ def display_heatamp(
         return ax, keypoints_name
     return ax
 
-# Uncertainty 시각화 함수 - 사용하지 않음
-def plot_img_with_kp_unc(img, target_keypoints, preds, keys, target_keypoints_weight, uncertainty ):
-    fig = plt.figure(1,figsize=(20,16))
-
-    #########################
-    ax1 = fig.add_subplot(131)
-    image = img[0].permute(1,2,0).detach().cpu().numpy()
-    rgb_image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
-    predicted_keypoints = keys.squeeze(axis=0)
-    GT_keypoints_weight = target_keypoints_weight.detach().cpu().numpy()[0]
-    ax1 = display_keypoints(1, preds[0], GT_keypoints_weight, ax1)
-    ax1.imshow(image)
-    plt.title("Predicted Keypoints", fontsize=20)
-    ax1.axis("off")
-
-    #########################
-    ax1 = fig.add_subplot(132)
-    image = img[0].permute(1,2,0).detach().cpu().numpy()
-    rgb_image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
-    predicted_keypoints = keys.squeeze(axis=0)
-    ax1 = display_keypoints_with_uncertainty(1, predicted_keypoints.detach().cpu().numpy()*4, target_keypoints_weight.squeeze().detach().cpu().numpy(), uncertainty[0].squeeze(),ax1, bound=1.5)
-    # ax1 = display_keypoints_with_uncertainty(1, preds_unc.squeeze(axis=0), GT_keypoints_weight, uncertainty[0].squeeze(),ax1, bound=1.5)
-    ax1.imshow(image)
-    plt.title("Expected Keypoints", fontsize=20)
-    ax1.axis("off")
-
-    #########################
-    ax1 = fig.add_subplot(133)
-    image = img[0].permute(1,2,0).detach().cpu().numpy()
-    rgb_image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
-    GT_keypoints = target_keypoints.detach().cpu().numpy()[0]
-    ax1 = display_keypoints(1, GT_keypoints, target_keypoints_weight.squeeze().detach().cpu().numpy(), ax1, draw_not_visible=False)
-    ax1.imshow(image)
-    plt.title("Target Keypoints", fontsize=20)
-    ax1.axis("off")
-    plt.show()

@@ -14,18 +14,13 @@ sys.path.insert(0, str(project_root))
 import torch
 from typing import Any
 
-from hpe.utils.utils import ShellColors as sc
+from hpe.utils.logging_utils import ShellColors as sc
 from configs.hpe.config import config
 from configs.hpe.config import get_model_name
-from hpe.utils.utils import (
-    save_checkpoint,
-    create_logger_sfl,
-    init_random_seed,
-    set_random_seed,
-    load_checkpoint,
-    show_info,
-    parse_args
-)
+from hpe.utils.logging_utils import create_logger_sfl
+from hpe.utils.checkpoint_utils import save_checkpoint, load_checkpoint
+from hpe.utils.random_utils import init_random_seed, set_random_seed
+from hpe.utils.misc_utils import show_info, parse_args
 from federated.server import FedServer
 from hpe.train.client import FLClient
 from hpe.models.vit import ViT
