@@ -2,11 +2,46 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+from abc import ABCMeta, abstractmethod
 
 from hpe.utils.utils import resize, normal_init, constant_init
-from hpe.models.topdown_heatmap_base_head import TopdownHeatmapBaseHead
 from hpe.utils.post_processing import flip_back
 
+
+class TopdownHeatmapBaseHead(nn.Module):
+    """Base class for top-down heatmap heads.
+
+    All top-down heatmap heads should subclass it.
+    All subclass should overwrite:
+
+    Methods:`get_loss`, supporting to calculate loss.
+    Methods:`get_accuracy`, supporting to calculate accuracy.
+    Methods:`forward`, supporting to forward model.
+    Methods:`inference_model`, supporting to inference model.
+    """
+
+    __metaclass__ = ABCMeta
+
+    @abstractmethod
+    def forward(self, **kwargs):
+        """Forward function."""
+
+    @staticmethod
+    def _get_deconv_cfg(deconv_kernel):
+        """Get configurations for deconv layers."""
+        if deconv_kernel == 4:
+            padding = 1
+            output_padding = 0
+        elif deconv_kernel == 3:
+            padding = 1
+            output_padding = 1
+        elif deconv_kernel == 2:
+            padding = 0
+            output_padding = 0
+        else:
+            raise ValueError(f"Not supported num_kernels ({deconv_kernel}).")
+
+        return deconv_kernel, padding, output_padding
 
 class TopdownHeatmapSimpleHead(TopdownHeatmapBaseHead):
     def __init__(
@@ -231,3 +266,49 @@ class TopdownHeatmapSimpleHead(TopdownHeatmapBaseHead):
                 normal_init(m, std=0.001, bias=0)
             elif isinstance(m, nn.BatchNorm2d):
                 constant_init(m, 1)
+
+class TopdownHeatmapIdentityHead(nn.Module):
+    def __init__(
+        self,
+        in_channels,
+        out_channls,
+        train_cfg=None,
+        test_cfg=None,
+    ):
+        super().__init__()
+        self.train_cfg = {} if train_cfg is None else train_cfg
+        self.test_cfg = {} if test_cfg is None else test_cfg
+        self.target_type = self.test_cfg.get("target_type", "GaussianHeatmap")
+
+        self.final_layer = nn.Conv2d(in_channels, out_channls, 1, stride=1)
+
+    def forward(self, x):
+        """Forward function."""
+
+        # return heatmap
+        x = self.final_layer(x)
+        return x
+
+    def inference_model(self, x, flip_pairs=None):
+        """Inference function.
+
+        Returns:
+            output_heatmap (np.ndarray): Output heatmaps.
+
+        Args:
+            x (torch.Tensor[N,K,H,W]): Input features.
+            flip_pairs (None | list[tuple]):
+                Pairs of keypoints which are mirrored.
+        """
+        output = self.forward(x)
+
+        if flip_pairs is not None:
+            output_heatmap = flip_back(
+                output.detach().cpu().numpy(), flip_pairs, target_type=self.target_type
+            )
+            # feature is not aligned, shift flipped heatmap for higher accuracy
+            if self.test_cfg.get("shift_heatmap", False):
+                output_heatmap[:, :, :, 1:] = output_heatmap[:, :, :, :-1]
+        else:
+            output_heatmap = output.detach().cpu().numpy()
+        return output_heatmap
