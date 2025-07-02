@@ -7,27 +7,15 @@ from timm.models.layers import trunc_normal_
 
 
 class ViTPose(nn.Module):
-    def __init__(self, backbone, deconv_head, distillation_target=None):
+    def __init__(self, backbone, deconv_head):
         super(ViTPose, self).__init__()
         self.backbone = backbone
         self.keypoint_head = deconv_head
-        self.distillation_target = distillation_target
-        print(f"distill target => {self.distillation_target}")
 
     def forward(self, x):
-        # feature_map = self.backbone(x)
-        kd_output = None
-        
-        # 기본적으로 ViT의 backbone에서 feature_map과 distillation output을 뽑음.
-        feature_map, kd_output = self.backbone(x, distillation_target=self.distillation_target)
-        
+        feature_map = self.backbone(x)
         heatmap = self.keypoint_head(feature_map)
-        
-        # logit이면 ViTPose의 output (heatmap)을 그대로 distillation output으로 씀.
-        if self.distillation_target == 'logit_hm':
-            kd_output = heatmap
-        
-        return heatmap, kd_output
+        return heatmap
 
     def init_weights(
         self, pretrained=None, strict=True, map_location=None, check_parameter_values=True
@@ -151,87 +139,3 @@ class ViTPose(nn.Module):
             
         model.backbone.load_state_dict(state_dict, strict=False)
         return model
-
-def _main():
-    import sys
-    import os
-
-    # 프로젝트 루트 디렉토리를 PYTHONPATH에 추가
-    project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '../../'))
-    sys.path.append(project_root)
-    print(f"base root path: {project_root}")
-
-    from lib.models.extra.vit_small_uncertainty_config import extra
-    from lib.core.config import config
-    from lib.core.config import update_config
-    import torchvision.transforms as transforms
-    from lib.models.backbones.vit import ViT
-    from lib.models.heads import TopdownHeatmapSimpleHead
-    from lib.dataset.coco import COCODataset
-    from lib.dataset.mpii import MPIIDataset
-    from lib import dataset
-    
-    config_file = "vit_small_multi_res_sfl_mpii_train_kd.yaml"
-    config_path = os.path.abspath(os.path.join(project_root, 'experiments/mpii', config_file))
-    print(f"config path: {config_path}")
-    normalize = transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
-    
-    update_config(config_path)
-    backbone = ViT(
-        img_size=extra["backbone"]["img_size"],
-        patch_size=extra["backbone"]["patch_size"],
-        embed_dim=extra["backbone"]["embed_dim"],
-        in_channels=3,
-        num_heads=extra["backbone"]["num_heads"],
-        depth=extra["backbone"]["depth"],
-        qkv_bias=True,
-        drop_path_rate=extra["backbone"]["drop_path_rate"],
-        use_gpe=config.MODEL.USE_GPE,
-        use_lpe=config.MODEL.USE_LPE,
-        use_gap=config.MODEL.USE_GAP,
-    )
-    deconv_head = TopdownHeatmapSimpleHead(
-        in_channels=extra["keypoint_head"]["in_channels"],
-        num_deconv_layers=extra["keypoint_head"]["num_deconv_layers"],
-        num_deconv_filters=extra["keypoint_head"]["num_deconv_filters"],
-        num_deconv_kernels=extra["keypoint_head"]["num_deconv_kernels"],
-        extra=dict(final_conv_kernel=1),
-        # out_channels=17,
-        out_channels=config.MODEL.NUM_JOINTS,
-    )
-    
-    print(f"config.DATASET.ROOT: {config.DATASET.ROOT}")
-    print(f"config.DATASET.TRAIN_SET: {config.DATASET.TRAIN_SET}")
-    
-    train_dataset = eval(f'dataset.{config.DATASET.DATASET}')(
-            cfg=config,
-            root=config.DATASET.ROOT,
-            image_set=config.DATASET.TRAIN_SET,
-            is_train=True,
-            transform=  transforms.Compose(
-                [
-                    transforms.ToTensor(),
-                    normalize,
-                ]
-            ),
-        )
-    
-    train_loader = torch.utils.data.DataLoader(
-        train_dataset,
-        batch_size=config.TRAIN.BATCH_SIZE,
-        shuffle=True,
-        num_workers=config.WORKERS,
-        pin_memory=True,
-    )
-    
-    inputs, heatmaps, heatmap_target, meta = next(iter(train_loader))
-    for idx, input in enumerate(inputs):
-        print(f"input [{idx}] shape: {input.shape}")
-        feature_map, _ = backbone(input)
-        print(f"feature map shape: {feature_map.shape}")
-        heatmap = deconv_head(feature_map)
-        print(f"heatmap shape: {heatmap.shape}")
-        break
-
-if __name__ == "__main__":
-    _main()

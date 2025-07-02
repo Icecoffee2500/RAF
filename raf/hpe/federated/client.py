@@ -149,7 +149,7 @@ class FLClient:
         
         # forward propagation
         img, heatmap, heatmap_weight = img.to(self.device), heatmap.to(self.device), heatmap_weight.to(self.device)
-        output, _ = self.model(img)
+        output = self.model(img)
         
         # calculate privacy loss
         loss = self.cal_loss(
@@ -256,7 +256,7 @@ class FLClient:
         heatmap_weights = [heatmap_weight.to(self.device) for heatmap_weight in heatmap_weights]
         
         for idx, img in enumerate(imgs):
-            output, _ = self.model(img)
+            output = self.model(img)
             heatmap = heatmaps[idx]
             heatmap_weight = heatmap_weights[idx]
             
@@ -412,7 +412,7 @@ class FLClient:
                 # ------------------------------- INTERPOLATION TEST ------------------------------- #
                 
                 #---------forward prop-------------
-                output, _ = self.model(img)
+                output = self.model(img)
                 
                 # Flip Test
                 if self.config.TEST.FLIP_TEST:

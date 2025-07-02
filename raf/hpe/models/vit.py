@@ -1,6 +1,6 @@
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
+# import torch.nn.functional as F
 import torch.utils.checkpoint as checkpoint
 import os.path as osp
 
@@ -8,7 +8,6 @@ from collections import OrderedDict
 from functools import partial
 from einops import rearrange
 from timm.models.layers import drop_path, to_2tuple, trunc_normal_
-import numpy as np
 import math
 
 
@@ -53,15 +52,12 @@ class GlobalPosEmbed(nn.Module):
         b, n, c = x.shape # (batch_size, patch_h_n * patch_w_n + 1, self.embed_dim)
         # print(f"batch => {b}, n => {n}, c => {c}")
 
-        # 기존 코드
-        # patch_n = int((n-1) ** 0.5)
-        # not_mask = torch.ones((b, patch_n, patch_n), device = x.device)
-        # ViTPose에 맞게 변경한 코드 -------------------------------------------------------------------------------------
+        # ResFormer의 코드를 4:3 비율을 가지고 있는 ViTPose에 맞게 변경한 코드
         unit_scale = int(((n-1) // 12) ** 0.5)
         patch_h_n = 4 * unit_scale
         patch_w_n = 3 * unit_scale
         not_mask = torch.ones((b, patch_h_n, patch_w_n), device = x.device)
-        # -----------------------------------------------------------------------------------------------------------
+
         y_embed = not_mask.cumsum(1, dtype=torch.float32) # height에 대해서 누적으로 점차 더해짐.
         x_embed = not_mask.cumsum(2, dtype=torch.float32) # width에 대해서 누적으로 점차 더해짐.
         if self.normalize:
@@ -115,7 +111,6 @@ class MultiHeadAttention(nn.Module):
     
     def get_local_pos_embed(self, x):
         B, _, N, C = x.shape
-        # H = W = int(np.sqrt(N-1)) # 이거는 이미지 크기가 정방형이기 때문에 이렇게 한 것.
 
         unit_scale = int(((N-1) // 12) ** 0.5)
         H = 4 * unit_scale # 현재 feature map의 height
@@ -344,8 +339,7 @@ class ViT(nn.Module):
 
         return changed_checkpoint
 
-    def forward(self, x, distillation_target=None):
-        kd_output = None
+    def forward(self, x):
         B, C, H, W = x.shape # torch.Size([B, 3, 256, 192])
         x, (Hp, Wp) = self.patch_embed(x) # torch.Size([B, 16*12, 1280])
         
@@ -367,94 +361,9 @@ class ViT(nn.Module):
 
         x = self.last_norm(x)
         
-        if distillation_target == "gap":
-            gap = F.adaptive_avg_pool1d(x[:, 1:].transpose(1,2), (1,)).transpose(1,2)
-            kd_output = gap
-        else:
-            kd_output = x[:, 0]
-        
-        # ----------------------------------------------------------------------
         if self.use_gpe:
             global_token = x[:, :1]
             x = x[:, 1:] + global_token
-        # ----------------------------------------------------------------------
-        
-        # 만약 GAP 사용 (Global Average Pooling)
-        if distillation_target == "gap":
-            x = x + gap
         
         xp = rearrange(x, "b (h w) d-> b d h w", h=Hp).contiguous()
-        return xp, kd_output
-
-
-def _main():
-    import sys
-    import os
-
-    # 프로젝트 루트 디렉토리를 PYTHONPATH에 추가
-    project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '../../../'))
-    sys.path.append(project_root)
-    print(f"base root path: {project_root}")
-
-    from lib.models.extra.vit_small_uncertainty_config import extra
-    from lib.core.config import config
-    from lib.core.config import update_config
-    import torchvision.transforms as transforms
-    from lib.dataset.coco import COCODataset
-    from lib.dataset.mpii import MPIIDataset
-    from lib import dataset
-    
-    config_file = "vit_small_multi_res_sfl_mpii_train_kd.yaml"
-    config_path = os.path.abspath(os.path.join(project_root, 'experiments/mpii', config_file))
-    print(f"config path: {config_path}")
-    normalize = transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
-    
-    update_config(config_path)
-    backbone = ViT(
-        img_size=extra["backbone"]["img_size"],
-        patch_size=extra["backbone"]["patch_size"],
-        embed_dim=extra["backbone"]["embed_dim"],
-        in_channels=3,
-        num_heads=extra["backbone"]["num_heads"],
-        depth=extra["backbone"]["depth"],
-        qkv_bias=True,
-        drop_path_rate=extra["backbone"]["drop_path_rate"],
-        use_gpe=config.MODEL.USE_GPE,
-        use_lpe=config.MODEL.USE_LPE,
-        use_gap=config.MODEL.USE_GAP,
-    )
-    
-    print(f"config.DATASET.ROOT: {config.DATASET.ROOT}")
-    print(f"config.DATASET.TRAIN_SET: {config.DATASET.TRAIN_SET}")
-    
-    train_dataset = eval(f'dataset.{config.DATASET.DATASET}')(
-            cfg=config,
-            root=config.DATASET.ROOT,
-            image_set=config.DATASET.TRAIN_SET,
-            is_train=True,
-            transform=  transforms.Compose(
-                [
-                    transforms.ToTensor(),
-                    normalize,
-                ]
-            ),
-        )
-    
-    train_loader = torch.utils.data.DataLoader(
-        train_dataset,
-        batch_size=config.TRAIN.BATCH_SIZE,
-        shuffle=True,
-        num_workers=config.WORKERS,
-        pin_memory=True,
-    )
-    
-    inputs, heatmaps, heatmap_target, meta = next(iter(train_loader))
-    for idx, input in enumerate(inputs):
-        print(f"input [{idx}] shape: {input.shape}")
-        feature_map, _ = backbone(input)
-        print(f"feature map shape: {feature_map.shape}")
-
-
-
-if __name__ == "__main__":
-    _main()
+        return xp
