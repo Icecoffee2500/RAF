@@ -30,6 +30,7 @@ data/
 wandb/
 output/
 notebooks/
+**/__pycache__/
 
 # PyInstaller
 #  Usually these files are written by a python script from a template
