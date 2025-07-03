@@ -25,11 +25,12 @@ share/python-wheels/
 *.egg
 MANIFEST
 
-checkpoints/
+pretrained/
 data/
 wandb/
 output/
 notebooks/
+**/__pycache__/
 
 # PyInstaller
 #  Usually these files are written by a python script from a template

@@ -1,0 +1,39 @@
+# pyproject.toml (프로젝트 루트 디렉토리에 생성)
+[build-system]
+requires = ["setuptools>=61.0", "wheel"] # 빌드 도구 (setuptools 사용)
+build-backend = "setuptools.build_meta" # setuptools가 패키지를 빌드하도록 지정
+
+[project]
+name = "raf" # setup.py의 name과 동일
+version = "0.1.0" # <--- 중요: 여기에 버전 번호를 명시해야 합니다. setup.py에서 비어있던 부분.
+description = "RAF" # setup.py의 description과 동일
+readme = "README.md" # setup.py의 long_description/long_description_content_type 대체
+requires-python = ">=3.8" # setup.py의 python_requires=">=3"을 구체적인 버전으로 (>=3.8 추천)
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+]
+authors = [
+    { name = "Taeheon Lim", email = "icecoffee2500@gmail.com" }, # author 필드 대체
+]
+
+# setup.py의 install_requires 대체
+dependencies = [
+    "EasyDict",
+    "torch",
+    "opencv-python",
+    "Cython",
+    "scipy",
+    "json_tricks",
+    "scikit-image",
+    "torchvision",
+    "matplotlib",
+    "timm",
+    "einops",
+    "wandb",
+    "pycocotools",
+]
+
+[tool.setuptools.packages.find]
+where = ["raf"]
