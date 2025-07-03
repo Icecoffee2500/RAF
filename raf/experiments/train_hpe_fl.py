@@ -271,14 +271,8 @@ def main(args):
                 print(f"{sc.COLOR_LIGHT_PURPLE}------------------------------------------------------------{sc.ENDC}")
                 
                 # evaluate performance of each clients (자체 모델 사용으로 개선)
-                # perf_indicator = client.evaluate(
-                #     final_output_dir=final_output_dir,
-                #     wdb=wdb,
-                # )
                 perf_indicator = client.evaluate(
                     final_output_dir=final_output_dir,
-                    backbone=backbone,
-                    keypoint_head=deconv_head,
                     wdb=wdb,
                 )
                 curr_avg_perf = curr_avg_perf + perf_indicator / len(fl_clients) # this is average performance
