@@ -242,8 +242,8 @@ def main(args):
         # load weight to global fl model
         global_fl_model.load_state_dict(w_glob_client)
         
-        # # Set global model to eval mode for consistent evaluation
-        # global_fl_model.eval()
+        # Set global model to eval mode for consistent evaluation
+        global_fl_model.eval()
         
         epoch_e_time = datetime.now() - init_time
         logger.info(f"This epoch takes {epoch_e_time}\n")
