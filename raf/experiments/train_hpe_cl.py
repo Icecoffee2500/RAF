@@ -21,6 +21,7 @@ from hpe.utils.logging_utils import create_logger_sfl
 from hpe.utils.checkpoint_utils import save_checkpoint, load_checkpoint
 from hpe.utils.random_utils import init_random_seed, set_random_seed
 from hpe.utils.misc_utils import show_info, parse_args
+from hpe.utils.resolution_utils import setup_single_client_resolution, is_multi_resolution
 from federated.server import FedServer
 from hpe.train.client import FLClient
 from hpe.models.vit import ViT
@@ -51,52 +52,12 @@ def main(args):
     config.KD_USE = True if args.kd_use else False
     config.KD_ALPHA = args.kd_alpha
     
-    if args.kd_use:
-        if args.gnc_res[0] == "high":
-            config.MODEL.IMAGE_SIZE = np.array([
-                np.array([192, 256]),
-                np.array([144, 192]),
-                np.array([96, 128])
-            ])
-            config.MODEL.HEATMAP_SIZE = np.array([
-                np.array([48, 64]),
-                np.array([36, 48]),
-                np.array([24, 32])
-            ])
-        elif args.gnc_res[0] == "mid":
-            config.MODEL.IMAGE_SIZE = np.array([
-                np.array([144, 192]),
-                np.array([96, 128])
-            ])
-            config.MODEL.HEATMAP_SIZE = np.array([
-                np.array([36, 48]),
-                np.array([24, 32])
-            ])
-        elif args.gnc_res[0] == "low":
-            config.MODEL.IMAGE_SIZE = np.array([96, 128])
-            config.MODEL.HEATMAP_SIZE = np.array([24, 32])
-    else:
-        if args.gnc_res[0] == "max_high":
-            config.MODEL.IMAGE_SIZE = np.array([432, 576])
-            config.MODEL.HEATMAP_SIZE = np.array([108, 144])
-        elif args.gnc_res[0] == "sup_high":
-            config.MODEL.IMAGE_SIZE = np.array([288, 384])
-            config.MODEL.HEATMAP_SIZE = np.array([72, 96])
-        elif args.gnc_res[0] == "high":
-            config.MODEL.IMAGE_SIZE = np.array([192, 256])
-            config.MODEL.HEATMAP_SIZE = np.array([48, 64])
-        elif args.gnc_res[0] == "mid":
-            config.MODEL.IMAGE_SIZE = np.array([144, 192])
-            config.MODEL.HEATMAP_SIZE = np.array([36, 48])
-        elif args.gnc_res[0] == "low":
-            config.MODEL.IMAGE_SIZE = np.array([96, 128])
-            config.MODEL.HEATMAP_SIZE = np.array([24, 32])
-        elif args.gnc_res[0] == "sup_low":
-            config.MODEL.IMAGE_SIZE = np.array([48, 64])
-            config.MODEL.HEATMAP_SIZE = np.array([12, 16])
-            
-        print(f"image size: {config.MODEL.IMAGE_SIZE}")
-        print(f"heatmap size: {config.MODEL.HEATMAP_SIZE}")
+    # Setup resolution configuration using utility function
+    config.MODEL.IMAGE_SIZE, config.MODEL.HEATMAP_SIZE = setup_single_client_resolution(
+        args.gnc_res[0], args.kd_use
+    )
+    print(f"image size: {config.MODEL.IMAGE_SIZE}")
+    print(f"heatmap size: {config.MODEL.HEATMAP_SIZE}")
     
     
     show_info(0, args, config)
@@ -189,18 +150,18 @@ def main(args):
     global_fl_model.to(device)
     
     cl_client = FLClient(
-        idx=0, # dataset의 index
+        client_id=0, # dataset의 index
         config=config,
         device=device,
-        init_model=global_fl_model,
+        init_model=global_fl_model,  # 이전과 동일하게 init_model 전달
         extra=extra,
         wdb=wdb,
         logger=logger,
         im_size=config.MODEL.IMAGE_SIZE,
         hm_size=config.MODEL.HEATMAP_SIZE,
-        split_size=args.gnc_split_num,
         batch_size=args.gnc_train_bs,
         is_proxy=False,
+        samples_per_split=args.gnc_split_num,
     )
     
     perf_buf = [0.0]
@@ -212,7 +173,7 @@ def main(args):
         cl_client.lr_scheduler.step()
 
         # -------- Train --------------------------------------------------------
-        if isinstance(config.MODEL.IMAGE_SIZE[0], (np.ndarray, list)):
+        if is_multi_resolution(config.MODEL.IMAGE_SIZE):
             print(f"\n>>> [{args.gnc_res[0]}] Client Multi-res (KD) Centralized Training")
             cl_client.train_multi_resolution(epoch)
         else:
@@ -242,8 +203,6 @@ def main(args):
             
             # evaluate performance of each clients
             perf_indicator = cl_client.evaluate(
-                backbone=cl_client.model.backbone,
-                keypoint_head=cl_client.model.keypoint_head,
                 final_output_dir=final_output_dir,
                 wdb=wdb,
             )

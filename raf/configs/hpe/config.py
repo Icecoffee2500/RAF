@@ -21,55 +21,25 @@ config = edict()
 
 config.OUTPUT_DIR = ""
 config.LOG_DIR = ""
-config.DATA_DIR = ""
 config.GPUS = "0"
 config.WORKERS = 4
 config.PRINT_FREQ = 20
 
-# Cudnn related params
-config.CUDNN = edict()
-config.CUDNN.BENCHMARK = True
-config.CUDNN.DETERMINISTIC = False
-config.CUDNN.ENABLED = True
-
-# pose_resnet related params
-POSE_RESNET = edict()
-POSE_RESNET.NUM_LAYERS = 50
-POSE_RESNET.DECONV_WITH_BIAS = False
-POSE_RESNET.NUM_DECONV_LAYERS = 3
-POSE_RESNET.NUM_DECONV_FILTERS = [256, 256, 256]
-POSE_RESNET.NUM_DECONV_KERNELS = [4, 4, 4]
-POSE_RESNET.FINAL_CONV_KERNEL = 1
-POSE_RESNET.TARGET_TYPE = "gaussian"
-POSE_RESNET.HEATMAP_SIZE = [64, 64]  # width * height, ex: 24 * 32
-POSE_RESNET.SIGMA = 2
-
-MODEL_EXTRAS = {
-    "pose_resnet": POSE_RESNET,
-}
-
 # common params for NETWORK
 config.MODEL = edict()
 config.MODEL.NAME = "pose_resnet"
-config.MODEL.INIT_WEIGHTS = True
 config.MODEL.TYPE = ""
 config.MODEL.PRETRAINED = ""
 config.MODEL.NUM_JOINTS = 16
 config.MODEL.IMAGE_SIZE = [256, 256]  # width * height, ex: 192 * 256
-config.MODEL.PR_IMAGE_SIZE = [256, 256]
 config.MODEL.HEATMAP_SIZE = [64, 64]
-config.MODEL.PR_HEATMAP_SIZE = [64, 64]
-config.MODEL.EXTRA = MODEL_EXTRAS[config.MODEL.NAME]
 
 #------------------------------------------------#
+config.MODEL.EXTRA = edict()
+config.MODEL.EXTRA.SIGMA = 2
 config.MODEL.EXTRA.HEATMAP_TYPE = "gaussian"
-config.MODEL.STYLE = "pytorch"
-config.MODEL.SCALE = 1
-config.MODEL.USE_AFTER_KP_HEAD = False
-config.MODEL.SUM_TO_ONE = False
 config.MODEL.FREEZE_NAME = ""
 config.MODEL.DIFF_NAME = ""
-config.MODEL.WDB = None
 config.MODEL.USE_EXP_KP = False
 config.MODEL.USE_AMP = False
 
@@ -77,41 +47,26 @@ config.MODEL.USE_GPE = False
 config.MODEL.USE_LPE = False
 config.MODEL.USE_GAP = False
 
-config.MODEL.KD_TARGET = ""
-
 config.LOSS = edict()
-config.LOSS.NAME = ""
+# config.LOSS.NAME = ""
 config.LOSS.HM_LOSS = ""
 config.LOSS.KD_LOSS = ""
 config.LOSS.USE_TARGET_WEIGHT = True
 # Uncertainty 관련 설정 제거됨 (사용하지 않음)
-config.LOSS.USE_CROSS_HM = False
+# config.LOSS.USE_CROSS_HM = False
 config.LOSS.HM_LOSS_WEIGHT = 0
 config.LOSS.KP_LOSS_WEIGHT = 0
 config.LOSS.KD_LOSS_WEIGHT = 0
-
-config.LOSS.KD_TAU = 1
-config.LOSS.KD_TYPE = ""
-#------------------------------------------------#
 
 # DATASET related params
 config.DATASET = edict()
 
 config.DATASET_SETS = None
-config.DATASET_PROXY = edict()
-config.DATASET_PROXY.ROOT = ""
-config.DATASET_PROXY.DATASET = "coco"
-config.DATASET_PROXY.TRAIN_SET = "train"
-config.DATASET_PROXY.TEST_SET = "valid"
-
 
 config.DATASET.ROOT = ""
 config.DATASET.DATASET = "mpii"
 config.DATASET.TRAIN_SET = "train"
 config.DATASET.TEST_SET = "valid"
-config.DATASET.DATA_FORMAT = "jpg"
-config.DATASET.HYBRID_JOINTS_TYPE = ""
-config.DATASET.SELECT_DATA = False
 config.DATASET.TARGET_HEATMAP = False
 
 # training data augmentation
@@ -125,11 +80,6 @@ config.DATASET.SELECT_DATA = False
 config.DATASET.NUM_JOINTS_HALF_BODY = 8
 config.DATASET.PROB_HALF_BODY = 0.3
 #------------------------------------------------#
-config.DATASET.AUGMENTATION = ""
-# config.DATASET.CUTMIX = False
-# config.DATASET.CUTOUT = False
-config.DATASET.SAME_POS = False
-config.DATASET.CLEAN_HIGH = False
 config.DATASET.NUMBER_OF_SPLITS = 1
 #------------------------------------------------#
 
@@ -138,7 +88,6 @@ config.FED = edict()
 config.FED.FEDAVG = True
 config.FED.FEDPROX = False
 config.FED.MU = 0.0
-config.FED.PROXY_CLIENT = False
 
 # KD related params
 config.KD_USE = False
@@ -152,29 +101,11 @@ config.TRAIN = edict()
 config.TRAIN.LR_FACTOR = 0.1
 config.TRAIN.LR_STEP = [90, 110]
 config.TRAIN.LR = 0.001
-#------------------------------------------------#
-config.TRAIN.LR_DIFF_FACTOR = 0.1
-config.TRAIN.WARMUP_ITERS = 500
-config.TRAIN.WARMUP_RATIO = 0.001
-#------------------------------------------------#
 config.TRAIN.OPTIMIZER = "adam"
-config.TRAIN.MOMENTUM = 0.9
-config.TRAIN.WD = 0.0001
-config.TRAIN.NESTEROV = False
-config.TRAIN.GAMMA1 = 0.99
-config.TRAIN.GAMMA2 = 0.0
-
-config.TRAIN.BEGIN_EPOCH = 1
-config.TRAIN.END_EPOCH = 140
-
-config.TRAIN.RESUME = False
-config.TRAIN.CHECKPOINT = ""
-
+config.TRAIN.BEGIN_EPOCH = 0
+config.TRAIN.END_EPOCH = 211
 config.TRAIN.BATCH_SIZE = 32
 config.TRAIN.SHUFFLE = True
-
-config.TRAIN.USE_PROXY = False
-
 # testing
 config.TEST = edict()
 
@@ -182,24 +113,16 @@ config.TEST = edict()
 config.TEST.BATCH_SIZE = 32
 # Test Model Epoch
 config.TEST.FLIP_TEST = False
-config.TEST.POST_PROCESS = True
-config.TEST.SHIFT_HEATMAP = True
-#------------------------------------------------#
-config.TEST.HYBRID_TEST = False
-#------------------------------------------------#
 
 config.TEST.USE_GT_BBOX = False
 #------------------------------------------------#
 config.TEST.USE_UDP = False
-config.TEST.SHIFT_TEST = False
-config.TEST.MODULATE_KERNEL = 11
 #------------------------------------------------#
 # nms
 config.TEST.OKS_THRE = 0.5
 config.TEST.IN_VIS_THRE = 0.0
 config.TEST.COCO_BBOX_FILE = ""
 config.TEST.BBOX_THRE = 1.0
-config.TEST.MODEL_FILE = ""
 config.TEST.IMAGE_THRE = 0.0
 config.TEST.NMS_THRE = 1.0
 
@@ -213,11 +136,26 @@ config.DEBUG.SAVE_HEATMAPS_PRED = False
 #------------------------------------------------#
 config.EVALUATION = edict()
 config.EVALUATION.INTERVAL = 10
-config.EVALUATION.METRIC = "mAP"
-config.EVALUATION.SAVE_BEST = "AP"
 #------------------------------------------------#
 
+# 핵심함수: YAML 파일을 읽어서 config 객체에 업데이트함.
+def update_config(config_file):
+    exp_config = None
+    with open(config_file) as f:
+        exp_config = edict(yaml.safe_load(f))
+        for k, v in exp_config.items():
+            if k in config:
+                if isinstance(v, dict):
+                    _update_dict(k, v)
+                else:
+                    if k == "SCALES":
+                        config[k][0] = tuple(v)
+                    else:
+                        config[k] = v
+            else:
+                raise ValueError("{} not exist in config.py".format(k))
 
+# update_config 함수에서 사용되는 내부 함수.
 def _update_dict(k, v):
     if k == "DATASET":
         if "MEAN" in v and v["MEAN"]:
@@ -249,66 +187,12 @@ def _update_dict(k, v):
             raise ValueError("{}.{} not exist in config.py".format(k, vk))
 
 
-def update_config(config_file):
-    exp_config = None
-    with open(config_file) as f:
-        exp_config = edict(yaml.safe_load(f))
-        for k, v in exp_config.items():
-            if k in config:
-                if isinstance(v, dict):
-                    _update_dict(k, v)
-                else:
-                    if k == "SCALES":
-                        config[k][0] = tuple(v)
-                    else:
-                        config[k] = v
-            else:
-                raise ValueError("{} not exist in config.py".format(k))
-
-
-def gen_config(config_file):
-    cfg = dict(config)
-    for k, v in cfg.items():
-        if isinstance(v, edict):
-            cfg[k] = dict(v)
-
-    with open(config_file, "w") as f:
-        yaml.dump(dict(cfg), f, default_flow_style=False)
-
-
-def update_dir(model_dir, log_dir, data_dir):
-    if model_dir:
-        config.OUTPUT_DIR = model_dir
-
-    if log_dir:
-        config.LOG_DIR = log_dir
-
-    if data_dir:
-        config.DATA_DIR = data_dir
-
-    config.DATASET.ROOT = os.path.join(config.DATA_DIR, config.DATASET.ROOT)
-
-    config.TEST.COCO_BBOX_FILE = os.path.join(config.DATA_DIR, config.TEST.COCO_BBOX_FILE)
-
-    config.MODEL.PRETRAINED = os.path.join(config.DATA_DIR, config.MODEL.PRETRAINED)
-
-
+# Checkpoint 저장할 때 사용되는 모델 이름을 정하는 함수.
+#TODO: 모델 이름 수정해야 함.
 def get_model_name(cfg):
     name = cfg.MODEL.NAME
     full_name = cfg.MODEL.NAME
-    extra = cfg.MODEL.EXTRA
-    if name in ["pose_resnet"]:
-        name = "{model}_{num_layers}".format(model=name, num_layers=extra.NUM_LAYERS)
-        deconv_suffix = "".join(
-            "d{}".format(num_filters) for num_filters in extra.NUM_DECONV_FILTERS
-        )
-        full_name = "{height}x{width}_{name}_{deconv_suffix}".format(
-            height=cfg.MODEL.IMAGE_SIZE[1],
-            width=cfg.MODEL.IMAGE_SIZE[0],
-            name=name,
-            deconv_suffix=deconv_suffix,
-        )
-    elif "vit" in name:
+    if "vit" in name:
         if isinstance(cfg.MODEL.IMAGE_SIZE[0], (list, np.ndarray)):
             name = f"{name}_{cfg.MODEL.TYPE}"
             full_name = ""
@@ -320,21 +204,7 @@ def get_model_name(cfg):
             full_name = "{height}x{width}_{name}".format(
                 height=cfg.MODEL.IMAGE_SIZE[1], width=cfg.MODEL.IMAGE_SIZE[0], name=name
             )
-    elif "hrformer" in name:
-        name = "{model}_{type}".format(model=name, type=cfg.MODEL.TYPE)
-        full_name = "{height}x{width}_{name}_{type}".format(
-            height=cfg.MODEL.IMAGE_SIZE[1],
-            width=cfg.MODEL.IMAGE_SIZE[0],
-            name=name,
-            type=cfg.MODEL.TYPE,
-        )
     else:
         raise ValueError("Unkown model: {}".format(cfg.MODEL))
 
     return name, full_name
-
-
-if __name__ == "__main__":
-    import sys
-
-    gen_config(sys.argv[1])

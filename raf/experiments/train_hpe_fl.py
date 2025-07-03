@@ -24,11 +24,14 @@ from hpe.utils.logging import create_logger_sfl
 from hpe.utils.checkpoint_utils import save_checkpoint, load_checkpoint
 from hpe.utils.random_utils import init_random_seed, set_random_seed
 from hpe.utils.misc_utils import show_info, parse_args
+from hpe.utils.resolution_utils import setup_client_resolutions, is_multi_resolution
 from federated.server import FedServer
 from hpe.federated.client import FLClient
 from hpe.models import ViT
 from hpe.models import TopdownHeatmapSimpleHead
 from hpe.models import ViTPose
+
+
 
 def main(args):
     wdb = None
@@ -40,9 +43,9 @@ def main(args):
             now = datetime.now()
             today = now.strftime("%m%d_%H:%M")
             
-            name = f"aggr-{args.fed}_loss_sacle-{args.loss_scale}_G{args.gnc_num}_{args.gnc_split_num}_bs{args.gnc_train_bs}+P{args.prc_num}_{args.prc_split_num*1000}_bs{args.prc_train_bs}_alpha={args.kd_alpha}"
+            name = f"aggr-{args.fed}_loss_sacle-{args.loss_scale}_G{args.client_num}_{args.samples_per_client}_bs{args.train_bs}_alpha={args.kd_alpha}"
             name += "_res"
-            for res in args.gnc_res:
+            for res in args.client_res:
                 name += f"_{res}"
             name += f"_{today}"
             
@@ -57,7 +60,7 @@ def main(args):
                 # 변환 실패 시 주요 설정만 수동으로 전달
                 wandb_config = {
                     "model_name": config.MODEL.NAME if hasattr(config, 'MODEL') else "unknown",
-                    "batch_size": args.gnc_train_bs,
+                    "batch_size": args.train_bs,
                     "fed_method": args.fed,
                     "kd_alpha": args.kd_alpha,
                     "loss_scale": args.loss_scale,
@@ -76,113 +79,15 @@ def main(args):
             print(f"{sc.COLOR_YELLOW}WandB 없이 실행을 계속합니다{sc.ENDC}")
             wdb = None
     
-    config.DATASET.AUGMENTATION = args.data_aug
-    config.DATASET.SAME_POS = True if args.same_pos else False
-    config.DATASET.CLEAN_HIGH = True if args.clean_high else False
+    # update config
     config.FED.FEDAVG = True if args.fed == "fedavg" else False
     config.FED.FEDPROX = True if args.fed == "fedprox" else False
     config.KD_USE = True if args.kd_use else False
-    # config.DATASET.NUMBER_OF_SPLITS = args.split_num
     config.KD_ALPHA = args.kd_alpha
-    config.FED.PROXY_CLIENT = args.prc_use
-    config.FED.PROXY_CLIENT = True if args.prc_num > 0 else False
     config.LOSS_SCALE = args.loss_scale
     
-    # if args.train_bs:
-    #     config.TRAIN.BATCH_SIZE = args.train_bs
-    
-    if args.gnc_res:
-        config.MODEL.IMAGE_SIZE = np.empty(len(args.gnc_res), dtype=object)
-        config.MODEL.HEATMAP_SIZE = np.empty(len(args.gnc_res), dtype=object)
-        for i, res in enumerate(args.gnc_res):
-            # if res == "max_high":
-            #     config.MODEL.IMAGE_SIZE[i] = np.array([432, 576])
-            #     config.MODEL.HEATMAP_SIZE[i] = np.array([108, 144])
-            # elif res == "sup_high":
-            #     config.MODEL.IMAGE_SIZE[i] = np.array([288, 384])
-            #     config.MODEL.HEATMAP_SIZE[i] = np.array([72, 96])
-            # elif res == "high":
-            #     config.MODEL.IMAGE_SIZE[i] = np.array([192, 256])
-            #     config.MODEL.HEATMAP_SIZE[i] = np.array([48, 64])
-            # elif res == "mid":
-            #     config.MODEL.IMAGE_SIZE[i] = np.array([144, 192])
-            #     config.MODEL.HEATMAP_SIZE[i] = np.array([36, 48])
-            # elif res == "low":
-            #     config.MODEL.IMAGE_SIZE[i] = np.array([96, 128])
-            #     config.MODEL.HEATMAP_SIZE[i] = np.array([24, 32])
-            # elif res == "sup_low":
-            #     config.MODEL.IMAGE_SIZE[i] = np.array([48, 64])
-            #     config.MODEL.HEATMAP_SIZE[i] = np.array([12, 16])
-            # if res == "high":
-            #     config.MODEL.IMAGE_SIZE[i] = np.array([
-            #         np.array([192, 256]),
-            #         np.array([144, 192]),
-            #         np.array([96, 128])
-            #     ])
-            #     config.MODEL.HEATMAP_SIZE[i] = np.array([
-            #         np.array([48, 64]),
-            #         np.array([36, 48]),
-            #         np.array([24, 32])
-            #     ])
-            # elif res == "mid":
-            #     config.MODEL.IMAGE_SIZE[i] = np.array([
-            #         np.array([144, 192]),
-            #         np.array([96, 128])
-            #     ])
-            #     config.MODEL.HEATMAP_SIZE[i] = np.array([
-            #         np.array([36, 48]),
-            #         np.array([24, 32])
-            #     ])
-            # elif res == "low":
-            #     config.MODEL.IMAGE_SIZE[i] = np.array([96, 128])
-            #     config.MODEL.HEATMAP_SIZE[i] = np.array([24, 32])
-            if args.kd_use:
-                if res == "high":
-                    config.MODEL.IMAGE_SIZE[i] = np.array([
-                        np.array([192, 256]),
-                        np.array([144, 192]),
-                        np.array([96, 128])
-                    ])
-                    config.MODEL.HEATMAP_SIZE[i] = np.array([
-                        np.array([48, 64]),
-                        np.array([36, 48]),
-                        np.array([24, 32])
-                    ])
-                elif res == "mid":
-                    config.MODEL.IMAGE_SIZE[i] = np.array([
-                        np.array([144, 192]),
-                        np.array([96, 128])
-                    ])
-                    config.MODEL.HEATMAP_SIZE[i] = np.array([
-                        np.array([36, 48]),
-                        np.array([24, 32])
-                    ])
-                elif res == "low":
-                    config.MODEL.IMAGE_SIZE[i] = np.array([96, 128])
-                    config.MODEL.HEATMAP_SIZE[i] = np.array([24, 32])
-            else:
-                if res == "max_high":
-                    config.MODEL.IMAGE_SIZE[i] = np.array([432, 576])
-                    config.MODEL.HEATMAP_SIZE[i] = np.array([108, 144])
-                elif res == "sup_high":
-                    config.MODEL.IMAGE_SIZE[i] = np.array([288, 384])
-                    config.MODEL.HEATMAP_SIZE[i] = np.array([72, 96])
-                elif res == "high":
-                    config.MODEL.IMAGE_SIZE[i] = np.array([192, 256])
-                    config.MODEL.HEATMAP_SIZE[i] = np.array([48, 64])
-                elif res == "mid":
-                    config.MODEL.IMAGE_SIZE[i] = np.array([144, 192])
-                    config.MODEL.HEATMAP_SIZE[i] = np.array([36, 48])
-                elif res == "low":
-                    config.MODEL.IMAGE_SIZE[i] = np.array([96, 128])
-                    config.MODEL.HEATMAP_SIZE[i] = np.array([24, 32])
-                elif res == "sup_low":
-                    config.MODEL.IMAGE_SIZE[i] = np.array([48, 64])
-                    config.MODEL.HEATMAP_SIZE[i] = np.array([12, 16])
-        
-        
-        
-        
+    if args.client_res:
+        config.MODEL.IMAGE_SIZE, config.MODEL.HEATMAP_SIZE = setup_client_resolutions(args.client_res, args.kd_use)
         print(f"image size: {config.MODEL.IMAGE_SIZE}")
         print(f"heatmap size: {config.MODEL.HEATMAP_SIZE}")
     
@@ -223,7 +128,7 @@ def main(args):
 
     # res_arg = f"pr-split{args.prc_split_num}_pr-bs{args.prc_train_bs}"
     res_arg = ""
-    for res in args.gnc_res:
+    for res in args.client_res:
         res_arg += f"{res}_"
     res_arg += f"{args.kd_alpha}"
     print(res_arg)
@@ -282,56 +187,23 @@ def main(args):
     global_fl_model.to(device)
     
     fl_clients = []
-    for idx in range(args.gnc_num):
+    for idx in range(args.client_num):
         fl_clients.append(
             FLClient(
                 client_id=idx, # dataset의 index
                 config=config,
                 device=device,
-                init_model=global_fl_model,
+                init_model=global_fl_model,  # 이전과 동일하게 init_model 전달
                 extra=extra,
                 wdb=wdb,
                 logger=logger,
                 im_size=config.MODEL.IMAGE_SIZE[idx],
                 hm_size=config.MODEL.HEATMAP_SIZE[idx],
-                batch_size=args.gnc_train_bs,
+                batch_size=args.train_bs,
                 is_proxy=False,
-                samples_per_split=args.gnc_split_num,
+                samples_per_split=args.samples_per_client,
             )
         )
-    
-    if config.FED.PROXY_CLIENT:
-        proxy_client_im_size = np.array([
-            np.array([192, 256]),
-            np.array([144, 192]),
-            np.array([96, 128])
-        ])
-        proxy_client_hm_size = np.array([
-            np.array([48, 64]),
-            np.array([36, 48]),
-            np.array([24, 32])
-        ])
-        # proxy_client_im_size = np.array([192, 256])
-        # proxy_client_hm_size = np.array([48, 64])
-        
-        fl_pr_clients = []
-        for i in range(args.prc_num):
-            fl_pr_clients.append(
-                FLClient(
-                    client_id=int(22 / args.prc_split_num) - 1 - i, # prc의 index는 거꾸로
-                    config=config,
-                    device=device,
-                    init_model=global_fl_model,
-                    extra=extra,
-                    wdb=wdb,
-                    logger=logger,
-                    im_size=proxy_client_im_size,
-                    hm_size=proxy_client_hm_size,
-                    batch_size=args.prc_train_bs,
-                    is_proxy=True,
-                    samples_per_split=args.prc_split_num,
-                )
-            )
     
     # Fed Server for aggregating model weights
     fed_server = FedServer()
@@ -344,34 +216,22 @@ def main(args):
         # scheduler step
         for client in fl_clients:
             client.lr_scheduler.step()
-        
-        if config.FED.PROXY_CLIENT:
-            for pr_client in fl_pr_clients:
-                pr_client.lr_scheduler.step()
 
-        # -------- Train --------------------------------------------------------
+        # Train ----------------------------------------------------------------
         client_weights = []
         for idx, client in enumerate(fl_clients):
             # print(f"\n>>> General Client [{idx}] Training")
-            if isinstance(config.MODEL.IMAGE_SIZE[idx][0], (np.ndarray, list)):
-                print(f"\n>>> General Client [{idx}]-[{args.gnc_res[idx]}] Multi-res (KD) Federated Learning Training")
+            if is_multi_resolution(config.MODEL.IMAGE_SIZE[idx]):
+                print(f"\n>>> General Client [{idx}]-[{args.client_res[idx]}] Multi-res (KD) Federated Learning Training")
                 client.train_multi_resolution(epoch)
             else:
-                print(f"\n>>> General Client [{idx}]-[{args.gnc_res[idx]}] Single-res (No-KD) Federated Learning Training")
+                print(f"\n>>> General Client [{idx}]-[{args.client_res[idx]}] Single-res (No-KD) Federated Learning")
                 client.train_single_resolution(epoch)
             
             client_weights.append(client.model.state_dict())
         
-        # if epoch > 0:
-        if config.FED.PROXY_CLIENT:
-            for idx, pr_client in enumerate(fl_pr_clients):
-                print(f"\n>>> PR-Client [{idx}] Training")
-                pr_client.train_multi_resolution(epoch)
-                # pr_client.train_single_resolution(epoch)
-                client_weights.append(pr_client.model.state_dict())
-        
         # aggregate weights
-        logger.info(">>> load Fed-Averaged weight to the proxy client model ...")
+        logger.info(">>> load Fed-Averaged weight to the client model ...")
         w_glob_client = fed_server.aggregate(logger, client_weights)
         
         # Braadcast weight to each clients
@@ -379,12 +239,11 @@ def main(args):
         for client in fl_clients:
             client.model.load_state_dict(w_glob_client)
         
-        if config.FED.PROXY_CLIENT:
-            for pr_client in fl_pr_clients:
-                pr_client.model.load_state_dict(w_glob_client)
-        
         # load weight to global fl model
         global_fl_model.load_state_dict(w_glob_client)
+        
+        # # Set global model to eval mode for consistent evaluation
+        # global_fl_model.eval()
         
         epoch_e_time = datetime.now() - init_time
         logger.info(f"This epoch takes {epoch_e_time}\n")
@@ -393,12 +252,6 @@ def main(args):
             lr_ = client.lr_scheduler.get_lr()
             for i, g in enumerate(client.optimizer.param_groups):
                 g["lr"] = lr_[i]
-        
-        if config.FED.PROXY_CLIENT:
-            for pr_client in fl_pr_clients:
-                lr_p = pr_client.lr_scheduler.get_lr()
-                for i, g in enumerate(pr_client.optimizer.param_groups):
-                    g["lr"] = lr_p[i]
 
         # -------- Test --------------------------------------------------------
         # evaluate on validation set
@@ -417,11 +270,15 @@ def main(args):
                 print(f"--------------- Client {sc.COLOR_BROWN}{client_idx} {sc.COLOR_LIGHT_PURPLE}Evaluating{sc.ENDC} ------------")
                 print(f"{sc.COLOR_LIGHT_PURPLE}------------------------------------------------------------{sc.ENDC}")
                 
-                # evaluate performance of each clients
+                # evaluate performance of each clients (자체 모델 사용으로 개선)
+                # perf_indicator = client.evaluate(
+                #     final_output_dir=final_output_dir,
+                #     wdb=wdb,
+                # )
                 perf_indicator = client.evaluate(
-                    backbone=global_fl_model.backbone,
-                    keypoint_head=global_fl_model.keypoint_head,
                     final_output_dir=final_output_dir,
+                    backbone=backbone,
+                    keypoint_head=deconv_head,
                     wdb=wdb,
                 )
                 curr_avg_perf = curr_avg_perf + perf_indicator / len(fl_clients) # this is average performance

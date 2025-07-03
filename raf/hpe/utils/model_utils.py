@@ -40,7 +40,7 @@ def get_loss(cfg, device=None):
 
     return loss
 
-
+# 하드코딩된 weight_decay, gamma1, gamma2를 config에 따라 바뀔 수 있게 바꿔야 함.
 def get_vit_optimizer(cfg, model, extra):
     # large_group_list 구성하기.
     # large_group_list = [['backbone.pos_embed',

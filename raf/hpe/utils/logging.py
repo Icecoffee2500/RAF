@@ -50,8 +50,9 @@ def create_logger_sfl(cfg, cfg_name, phase="train", arg=None):
         root_output_dir.mkdir()
     time_str = time.strftime("%Y-%m-%d-%H-%M")
 
-    dataset = f"{cfg.DATASET_SETS[0].DATASET}_{cfg.DATASET_SETS[1].DATASET}_{cfg.DATASET_SETS[2].DATASET}"
-    dataset = dataset.replace(":", "_")
+    # dataset = f"{cfg.DATASET_SETS[0].DATASET}_{cfg.DATASET_SETS[1].DATASET}_{cfg.DATASET_SETS[2].DATASET}"
+    dataset = cfg.DATASET.DATASET
+    # dataset = dataset.replace(":", "_")
     model = f"{cfg.MODEL.NAME}-{cfg.MODEL.TYPE}"
     cfg_name = os.path.basename(cfg_name).split(".")[0]
     cfg_name = f"{cfg_name}_{time_str}"

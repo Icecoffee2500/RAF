@@ -43,7 +43,7 @@ class FLClient:
         self.config = config
         self.logger = logger
         self.device = device
-        self.model = deepcopy(init_model)
+        self.model = deepcopy(init_model)  # 이전과 동일하게 deepcopy 사용
         self.losses = AverageMeter()
         self.acc = AverageMeter()
         self.wdb = wdb
@@ -356,7 +356,8 @@ class FLClient:
         self.acc.update(total_avg_acc, total_cnt)
         self.losses.update(total_avg_loss.item(), imgs[0].size(0))
     
-    def evaluate(self, backbone, keypoint_head, final_output_dir, wdb):
+    # def evaluate(self, final_output_dir, wdb):
+    def evaluate(self, final_output_dir, backbone, keypoint_head, wdb):
         batch_time = AverageMeter()
         self.losses.reset()
         self.acc.reset()
@@ -377,55 +378,28 @@ class FLClient:
             end = time.time()
             epoch_start_time = datetime.now()
             for batch_idx, (img, heatmap, heatmap_weight, meta) in enumerate(self.valid_loader):
-                img, heatmap, heatmap_weight = img.to(self.device), heatmap.to(self.device), heatmap_weight.to(self.device)
-                
-                # ------------------------------- INTERPOLATION TEST ------------------------------- #
-                # # before interpolation
-                # print(f"Original Image Shape: {img.shape}")
-                # print(f"Original Heatmap Shape: {heatmap.shape}")
-                
-                # # Interpolation size
-                # # interpolate_size_im = (192, 144)
-                # # interpolate_size_hm = (48, 36)
-                # # interpolate_size_im = (256, 192)
-                # # interpolate_size_hm = (64, 48)
-                # # interpolate_size_im = (320, 240)
-                # # interpolate_size_hm = (80, 60)
-                # # interpolate_size_im = (384, 288)
-                # # interpolate_size_hm = (96, 72)
-                # interpolate_size_im = (512, 384)
-                # interpolate_size_hm = (128, 96)
-                
-                # # img = F.interpolate(img, size=interpolate_size_im, mode='area')
-                # # heatmap = F.interpolate(heatmap, size=interpolate_size_hm, mode='area')
-                # # img = F.interpolate(img, size=interpolate_size_im, mode='bilinear', align_corners=False)
-                # # heatmap = F.interpolate(heatmap, size=interpolate_size_hm, mode='bilinear', align_corners=False)
-                # img = F.interpolate(img, size=interpolate_size_im, mode='bicubic', align_corners=False)
-                # heatmap = F.interpolate(heatmap, size=interpolate_size_hm, mode='bicubic', align_corners=False)
-                
-                # # after interpolation
-                # print(f"After Interpolation Image Shape: {img.shape}")
-                # print(f"After Interpolation Heatmap Shape: {heatmap.shape}")
-                
-                # ------------------------------- INTERPOLATION TEST ------------------------------- #
-                
+                img, heatmap, heatmap_weight = img.to(self.device), heatmap.to(self.device), heatmap_weight.to(self.device)                
                 #---------forward prop-------------
                 output = self.model(img)
                 
                 # Flip Test
                 if self.config.TEST.FLIP_TEST:
                     img_flipped = img.flip(3).cuda()
-                    features_flipped= backbone(img_flipped)
+                    # features_flipped = self.model.backbone(img_flipped)
+                    features_flipped = backbone(img_flipped)
                     
+                    # output_flipped_heatmap = self.model.keypoint_head.inference_model(
+                    #     features_flipped, meta["flip_pairs"]
+                    # )
                     output_flipped_heatmap = keypoint_head.inference_model(
                         features_flipped, meta["flip_pairs"]
                     )
                     output_heatmap = (
-                        # output + torch.from_numpy(output_flipped_heatmap.copy()).cuda()
                         output + torch.from_numpy(output_flipped_heatmap.copy()).to(self.device)
                     ) * 0.5
+                else:
+                    output_heatmap = output
                 
-                # print(f"After Interpolation Output Heatmap Shape: {output_heatmap.shape}")
                 loss = self.cal_loss(
                     self.config,
                     self.criterion,
