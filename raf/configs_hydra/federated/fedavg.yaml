@@ -1,0 +1,6 @@
+# @package federated
+method: "fedavg"
+enabled: true
+num_clients: 3
+mu: 0.0
+samples_per_client: 4000

@@ -1,0 +1,20 @@
+# @package dataset
+name: "mpii"
+root: "data/mpii/"
+train_set: "train"
+test_set: "valid_half"
+num_joints: 16
+flip: true
+rot_factor: 30
+scale_factor: 0.25
+target_heatmap: true
+num_joints_half_body: 8
+prob_half_body: 0.3
+shift_factor: 0.12
+shift_prob: 0.3
+use_udp: true
+sigma: 2
+heatmap_type: "gaussian"
+select_data: false
+
+# 일단 내가 쓰는 yaml에서 DATASET 설정은 모두 포함됨. (NUMBER_OF_SPLITS 제외)

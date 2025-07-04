@@ -1,0 +1,30 @@
+# @package model
+name: "vit"
+type: "small"
+pretrained: "pretrained/mae_pretrain_vit_small.pth"
+use_gpe: true
+use_lpe: true
+
+backbone:
+  type: "ViT"
+  img_size: [256, 192]
+  patch_size: 16
+  embed_dim: 384
+  in_channels: 3
+  depth: 12
+  qkv_bias: true
+  num_heads: 12
+  drop_path_rate: 0.1
+  lr_decay_rate: 0.75
+
+keypoint_head:
+  type: "TopdownHeatmapSimpleHead"
+  in_channels: 384
+  num_deconv_layers: 2
+  num_deconv_filters: [256, 256]
+  num_deconv_kernels: [4, 4]
+  extra:
+    final_conv_kernel: 1
+  out_channels: 16 # 여기는 num_joints 변수로 통제할 수 있으면 좋겠다. mpii.yaml에서 가져오면 될 듯?
+
+  # 일단 vit_small_config.py 파일 중 use_checkpoint, mlp_ratio 만 빼고는 모두 포함됨.

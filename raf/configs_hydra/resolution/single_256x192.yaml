@@ -1,0 +1,4 @@
+# @package resolution
+type: "single"
+image_size: [256, 192]
+heatmap_size: [64, 48] 

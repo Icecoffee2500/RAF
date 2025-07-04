@@ -1,0 +1,35 @@
+# @package _global_
+defaults:
+  - override /dataset: mpii # 통과
+  - override /model: vit_small # 통과
+  - override /resolution: multi_3_scales
+  - override /federated: fedprox # 통과
+  - override /training: default # 통과
+  - override /loss: default # 통과
+
+# 실험별 특별 설정
+exp_name: "mpii_fedavg_multi_3scales"
+workers: 4
+print_freq: 100
+
+# # MPII에 맞게 조정
+# model:
+#   num_joints: 16
+#   keypoint_head:
+#     out_channels: 16
+
+# dataset:
+#   num_joints: 16
+
+# Multi-resolution + KD 설정
+# federated:
+#   kd:
+#     enabled: true
+#     alpha: 0.1
+#     loss_scale: 1.0
+
+# training:
+#   batch_size: 16 
+
+test:
+  batch_size: 64

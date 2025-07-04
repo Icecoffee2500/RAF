@@ -1,0 +1,26 @@
+defaults:
+  - dataset: coco
+  - model: vit_small
+  - resolution: single_256x192
+  - federated: centralized
+  - training: default
+  - loss: default
+  - experiment: null
+  - _self_
+
+# 기본 실험 메타데이터
+exp_name: "default_experiment"
+output_dir: "output"
+log_dir: "log"
+workers: 4
+print_freq: 100
+seed: 42
+gpu: 0
+wandb: true
+
+# Hydra 런타임 설정
+hydra:
+  run:
+    dir: ./outputs/${now:%Y-%m-%d}/${now:%H-%M-%S}
+  job:
+    name: ${exp_name} 

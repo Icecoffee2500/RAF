@@ -1,0 +1,14 @@
+# @package resolution
+type: "multi"
+image_size:
+  - [192, 256]
+  - [144, 192]
+  - [96, 128]
+heatmap_size:
+  - [48, 64]
+  - [36, 48]
+  - [24, 32] 
+resolutions:
+  - high
+  - mid
+  - low

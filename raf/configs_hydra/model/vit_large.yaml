@@ -1,0 +1,25 @@
+# @package model
+name: "vit"
+type: "large"
+pretrained: "checkpoints/mae_pretrain_vit_large.pth"
+use_gpe: true
+use_lpe: true
+use_gap: false
+
+backbone:
+  type: "ViT"
+  img_size: [256, 192]
+  patch_size: 16
+  embed_dim: 1024
+  depth: 24
+  num_heads: 16
+  drop_path_rate: 0.5
+  lr_decay_rate: 0.8
+
+keypoint_head:
+  type: "TopdownHeatmapSimpleHead"
+  in_channels: 1024
+  num_deconv_layers: 2
+  num_deconv_filters: [256, 256]
+  num_deconv_kernels: [4, 4]
+  out_channels: 17 

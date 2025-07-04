@@ -1,0 +1,10 @@
+# @package loss
+hm_loss: "JointMSEloss"
+hm_loss_weight: 1.0
+# use_target_weight: true 
+kd:
+  enabled: true
+  kd_loss: "JointMSEloss"
+  kd_loss_weight: 1.0
+  # alpha: 0.1
+  loss_scale: 1.0 

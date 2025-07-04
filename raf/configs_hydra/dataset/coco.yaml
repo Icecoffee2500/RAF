@@ -1,0 +1,20 @@
+# @package dataset
+name: "coco"
+root: "data/coco/"
+train_set: "train2017"
+test_set: "val2017"
+num_joints: 17
+flip: true
+rot_factor: 40
+scale_factor: 0.5
+target_heatmap: true
+num_joints_half_body: 8
+prob_half_body: 0.3 
+shift_factor: 0.12
+shift_prob: 0.3
+use_udp: true
+sigma: 2
+heatmap_type: "gaussian"
+select_data: false
+
+# 일단 내가 쓰는 yaml에서 DATASET 설정은 모두 포함됨.

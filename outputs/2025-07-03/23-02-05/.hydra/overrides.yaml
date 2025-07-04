@@ -1,0 +1,4 @@
+- experiment=mpii_fedavg_multi
+- training.end_epoch=1
+- federated.num_clients=2
+- gpu=0

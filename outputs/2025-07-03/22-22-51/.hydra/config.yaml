@@ -1,0 +1,91 @@
+dataset:
+  name: mpii
+  root: data/mpii/
+  train_set: train
+  test_set: valid_half
+  num_joints: 16
+  flip: true
+  rot_factor: 30
+  scale_factor: 0.25
+  target_heatmap: true
+  target_keypoint: false
+  num_joints_half_body: 8
+  prob_half_body: 0.3
+model:
+  name: vit
+  type: small
+  pretrained: checkpoints/mae_pretrain_vit_small.pth
+  use_gpe: true
+  use_lpe: true
+  use_gap: false
+  backbone:
+    type: ViT
+    img_size:
+    - 256
+    - 192
+    patch_size: 16
+    embed_dim: 384
+    depth: 12
+    num_heads: 12
+    drop_path_rate: 0.1
+    lr_decay_rate: 0.75
+  keypoint_head:
+    type: TopdownHeatmapSimpleHead
+    in_channels: 384
+    num_deconv_layers: 2
+    num_deconv_filters:
+    - 256
+    - 256
+    num_deconv_kernels:
+    - 4
+    - 4
+    out_channels: 16
+  image_size:
+  - - 192
+    - 256
+  - - 144
+    - 192
+  - - 96
+    - 128
+  heatmap_size:
+  - - 48
+    - 64
+  - - 36
+    - 48
+  - - 24
+    - 32
+  num_joints: 16
+federated:
+  method: fedavg
+  enabled: true
+  num_clients: 2
+  mu: 0.0
+  kd:
+    enabled: true
+    alpha: 0.1
+    loss_scale: 1.0
+training:
+  lr: 0.00025
+  batch_size: 16
+  begin_epoch: 0
+  end_epoch: 1
+  lr_step:
+  - 170
+  - 200
+  lr_factor: 0.1
+  optimizer: adamW
+  shuffle: true
+  wd: 0.01
+loss:
+  hm_loss: JointMSEloss
+  hm_loss_weight: 1.0
+  kd_loss_weight: 1.0
+  use_target_weight: true
+exp_name: default_experiment
+workers: 4
+print_freq: 100
+output_dir: output
+log_dir: log
+seed: 42
+gpu: 0
+wandb: false

@@ -1,0 +1,26 @@
+# @package _global_
+defaults:
+  - override /dataset: coco
+  - override /model: vit_small
+  - override /resolution: single_256x192
+  - override /federated: centralized
+  - override /training: default
+  - override /loss: default
+
+# 실험별 특별 설정
+exp_name: "coco_centralized_single_256x192"
+workers: 2
+print_freq: 100
+
+# COCO에 맞게 조정
+model:
+  num_joints: 17
+  keypoint_head:
+    out_channels: 17
+
+dataset:
+  num_joints: 17
+
+training:
+  batch_size: 10
+  lr: 0.0005 

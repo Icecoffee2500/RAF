@@ -1,4 +1,4 @@
-norm_cfg = dict(type="BN", requires_grad=True)
+norm_cfg = dict(type="BN", requires_grad=True) # 쓸데없음.
 extra = dict(
     drop_path_rate=0.1,
     joint_num=17,

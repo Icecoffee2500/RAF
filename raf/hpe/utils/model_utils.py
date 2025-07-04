@@ -25,10 +25,7 @@ def get_loss(cfg, device=None):
     # Uncertainty Loss 기능 제거됨 (사용하지 않음)
     
     #TODO: Distillation Loss
-    if cfg.LOSS.KD_LOSS == "DistillationLoss":
-        print(f"{ShellColors.COLOR_GREEN}Use Distillation Loss{ShellColors.ENDC}")
-        # loss["distillation"] = DistillationLoss(distillation_type=cfg.LOSS.KD_TYPE, tau=cfg.LOSS.KD_TAU)
-    elif cfg.LOSS.KD_LOSS == "JointMSEloss":
+    if cfg.LOSS.KD_LOSS == "JointMSEloss":
         print(f"{ShellColors.COLOR_GREEN}Use Distillation Loss - HM MSE{ShellColors.ENDC}")
         loss["distillation"] = JointsMSELoss(use_target_weight=True)
     else:
@@ -92,16 +89,16 @@ def get_vit_optimizer(cfg, model, extra):
                 })
             
     # freeze를 위한 ...
-    freeze_list = []
-    if cfg.MODEL.FREEZE_NAME or cfg.MODEL.DIFF_NAME:
-        for name, param in model.named_parameters():
-            result_freeze = [True if i in name else False for i in cfg.MODEL.FREEZE_NAME]
-            if any(result_freeze):
-                param.requires_grad = False
-                freeze_list.append(name)
-    print(f"freeze list => ")
-    for name in freeze_list:
-        print(name)
+    # freeze_list = []
+    # if cfg.MODEL.FREEZE_NAME or cfg.MODEL.DIFF_NAME:
+    #     for name, param in model.named_parameters():
+    #         result_freeze = [True if i in name else False for i in cfg.MODEL.FREEZE_NAME]
+    #         if any(result_freeze):
+    #             param.requires_grad = False
+    #             freeze_list.append(name)
+    # print(f"freeze list => ")
+    # for name in freeze_list:
+    #     print(name)
     
     optimizer = optim.AdamW(param_group, betas=(0.9, 0.999), eps=1e-08, amsgrad=False)
     return optimizer

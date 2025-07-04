@@ -1,0 +1,6 @@
+# @package federated
+method: "centralized"
+enabled: false
+num_clients: 1
+mu: 0.0
+samples_per_client: 4000

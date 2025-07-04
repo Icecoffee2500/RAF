@@ -221,7 +221,18 @@ class TopDownAffine:
     """
     def __init__(self, image_size, use_udp=False):
         self.use_udp = use_udp
-        self.image_size = image_size
+        # ListConfig 혹은 python list -> numpy array 변환 (연산 호환성 확보)
+        if isinstance(image_size, (list, tuple)):
+            # 다중 해상도(list of list)인지 단일 해상도(list)인지 구분
+            if len(image_size) > 0 and isinstance(image_size[0], (list, tuple)):
+                # 다중 해상도: 각 요소를 np.array 로 변환
+                self.image_size = [np.asarray(sz, dtype=np.float32) for sz in image_size]
+            else:
+                # 단일 해상도: 전체를 np.array 로 변환
+                self.image_size = np.asarray(image_size, dtype=np.float32)
+        else:
+            # 이미 np.ndarray 형태이거나 특수 객체이면 그대로 사용
+            self.image_size = image_size
     
     def __call__(self, img, joints, joints_vis, center, scale, rotation, num_joints):
         """Affine transform the image to make input."""
@@ -289,8 +300,24 @@ class TopDownGenerateHeatmap:
     def __init__(self, image_size, heatmap_size, sigma, heatmap_type):
         self.sigma = sigma
         self.heatmap_type = heatmap_type
-        self.image_size = image_size
-        self.heatmap_size = heatmap_size
+        import numpy as np
+        # image_size 변환
+        if isinstance(image_size, (list, tuple)) and not isinstance(image_size, np.ndarray):
+            if len(image_size) > 0 and isinstance(image_size[0], (list, tuple)):
+                self.image_size = [np.asarray(sz, dtype=np.float32) for sz in image_size]
+            else:
+                self.image_size = np.asarray(image_size, dtype=np.float32)
+        else:
+            self.image_size = image_size
+
+        # heatmap_size 는 shape에 사용되므로 int 타입 유지
+        if isinstance(heatmap_size, (list, tuple)) and not isinstance(heatmap_size, np.ndarray):
+            if len(heatmap_size) > 0 and isinstance(heatmap_size[0], (list, tuple)):
+                self.heatmap_size = [np.asarray(sz, dtype=np.int32) for sz in heatmap_size]
+            else:
+                self.heatmap_size = np.asarray(heatmap_size, dtype=np.int32)
+        else:
+            self.heatmap_size = heatmap_size.astype(np.int32) if isinstance(heatmap_size, np.ndarray) else heatmap_size
     
     def _msra_generate_heatmap(
         self,
@@ -317,6 +344,7 @@ class TopDownGenerateHeatmap:
         assert heatmap_type == "gaussian", "Only support gaussian map now!"
 
         if heatmap_type == "gaussian":
+            print(f"num_joints: {num_joints}, heatmap_size: {heatmap_size}")
             heatmap = np.zeros(
                 (num_joints, heatmap_size[1], heatmap_size[0]),
                 dtype=np.float32,

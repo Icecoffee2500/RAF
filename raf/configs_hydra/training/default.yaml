@@ -1,0 +1,10 @@
+# @package training
+lr: 0.00025
+batch_size: 32
+begin_epoch: 0
+end_epoch: 211
+lr_step: [170, 200]
+lr_factor: 0.1
+optimizer: "adamW"
+shuffle: true
+wd: 0.01 

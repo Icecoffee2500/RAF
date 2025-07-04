@@ -242,7 +242,6 @@ class ViT(nn.Module):
         frozen_stages=-1,
         use_gpe=False,
         use_lpe=False,
-        use_gap=False,
     ):
         super().__init__()
 
@@ -251,7 +250,6 @@ class ViT(nn.Module):
         self.pos_embed = nn.Parameter(torch.zeros(1, self.patch_embed.n_patches + 1, embed_dim)) # (1, 16*12 + 1, 768)
         
         self.use_gpe = use_gpe
-        self.use_gap = use_gap
         if self.use_gpe:
             print("self.use_gpe 쓰고 있음!!!! ------------------------------------------")
             self.cls_token = nn.Parameter(torch.zeros(1, 1, embed_dim)) # (1, 1, embed_dim)
