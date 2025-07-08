@@ -71,6 +71,17 @@ def _preprocess_cli_args() -> None:
                 i += 2
                 continue
 
+        # Match data_root flag
+        if arg in ("--data_root", "--data", "-d"):
+            if i + 1 < len(_sys.argv):
+                root_val = _sys.argv[i + 1]
+                # Quote path if it contains '=' to avoid confusion for Hydra
+                if "=" in root_val:
+                    root_val = f'"{root_val}"'
+                new_args.append(f"data_root={root_val}")
+                i += 2
+                continue
+
         # All other args pass through unchanged
         new_args.append(arg)
         i += 1
@@ -103,6 +114,12 @@ def _parse_command_line_overrides() -> dict:
         elif arg.startswith("exp_name="):
             exp_name = arg.split("=", 1)[1].strip("\"'")
             overrides["exp_name"] = exp_name
+
+        elif arg.startswith("data_root="):
+            data_root_val = arg.split("=", 1)[1]
+            # Strip possible quotes
+            data_root_val = data_root_val.strip("\"'")
+            overrides["data_root"] = data_root_val
     
     return overrides
 
