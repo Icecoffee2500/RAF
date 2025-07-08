@@ -65,7 +65,7 @@ def _get_device(device_id: int | str | None = None) -> torch.device:
     return device
 
 
-def build_model(num_classes: int, device_id: int | str | None = None) -> Tuple[SegformerForSemanticSegmentation, torch.device]:
+def build_model(num_classes: int, device_id: int | str | None = None, *, pretrained_encoder: bool = False) -> Tuple[SegformerForSemanticSegmentation, torch.device]:
     """Build SegFormer-B0 model initialized from scratch (no pretrained weights).
 
     Args:
@@ -77,14 +77,24 @@ def build_model(num_classes: int, device_id: int | str | None = None) -> Tuple[S
     """
     print(f"🏗️  Building SegFormer-B0 from scratch with {num_classes} classes")
     print(f"🔧 Architecture config from: {_SEGFORMER_CONFIG}")
-    print("🆕 All weights: initialized from scratch (no pretrained)")
+    if pretrained_encoder:
+        print("🔄 Loading ImageNet-pretrained encoder weights (SegFormer MiT)")
+    else:
+        print("🆕 All weights: initialized from scratch (no pretrained)")
     print(f"🎯 Target classes: {num_classes} (Cityscapes semantic segmentation)")
     
     # Load configuration only (not weights)
     config = SegformerConfig.from_pretrained(_SEGFORMER_CONFIG, num_labels=num_classes)
     
-    # Create model with random initialization
-    model = SegformerForSemanticSegmentation(config)
+    if pretrained_encoder:
+        model = SegformerForSemanticSegmentation.from_pretrained(
+            _SEGFORMER_CONFIG,
+            num_labels=num_classes,
+            ignore_mismatched_sizes=True,
+        )
+    else:
+        # Create model with random initialization
+        model = SegformerForSemanticSegmentation(config)
     
     # Verify no pretrained weights were loaded
     assert isinstance(model, SegformerForSemanticSegmentation)

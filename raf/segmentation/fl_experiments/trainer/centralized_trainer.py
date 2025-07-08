@@ -45,7 +45,9 @@ class CentralizedTrainer:
         
         # Build model with optional device specification
         device_id = cfg.get("device_id", None)  # Can be int, string, or None
-        self.model, self.device = build_model(self.num_classes, device_id)
+        model_cfg = cfg.get("model", {})
+        pretrained_flag = model_cfg.get("pretrained", False)
+        self.model, self.device = build_model(self.num_classes, device_id, pretrained_encoder=pretrained_flag)
         
         # Setup optimizer with config values
         optimizer_cfg = training_cfg.get("optimizer", {})

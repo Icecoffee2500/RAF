@@ -20,9 +20,12 @@ class FederatedClient:
         self.root = Path(root)
         self.batch_size = batch_size
         device_id_param = None
+        pretrained_flag = False
         if cfg is not None:
             device_id_param = cfg.get("device_id", None)
-        self.model, self.device = build_model(num_classes, device_id_param)
+            model_cfg = cfg.get("model", {})
+            pretrained_flag = model_cfg.get("pretrained", False)
+        self.model, self.device = build_model(num_classes, device_id_param, pretrained_encoder=pretrained_flag)
         self.optimizer = torch.optim.AdamW(self.model.parameters(), lr=6e-5, weight_decay=0.01)
 
         # Determine resize / crop resolution for this client
