@@ -16,12 +16,30 @@ from ..metrics import compute_miou
 
 
 class FederatedServer:
-    def __init__(self, clients: List[FederatedClient], data_root: str):
+    def __init__(self, clients: List[FederatedClient], data_root: str, cfg=None):
         self.clients = clients
         # initialize global model from first client
         self.global_state = self.clients[0].get_state()
         
-        # create validation set for evaluation
+        # create validation set for evaluation (use same config as centralized)
+        if cfg is not None:
+            training_cfg = cfg.get("training", {})
+            crop_size = training_cfg.get("crop_size", [512, 512])
+            # Convert ListConfig to list if needed
+            if hasattr(crop_size, '__iter__') and len(crop_size) >= 2:
+                resolution = min(crop_size)
+                crop_h, crop_w = crop_size[0], crop_size[1]
+                self.resolution_info = f"{resolution}→{crop_h}×{crop_w}"
+            else:
+                resolution = crop_size
+                crop_h = crop_w = crop_size
+                self.resolution_info = f"{resolution}→{crop_size}×{crop_size}"
+        else:
+            # Fallback to default
+            resolution = 512
+            crop_h = crop_w = 512
+            self.resolution_info = f"512→512×512"
+        
         dataset_config = edict({
             'dataset_root': data_root,
             'train_split': 'train',
@@ -33,8 +51,8 @@ class FederatedServer:
             'num_workers': 4,
             'pin_memory': True,
             'transform_config': edict({
-                'resolution': 512,
-                'crop_size': 512,
+                'resolution': resolution,
+                'crop_size': min(crop_h, crop_w),  # Use square crop for now
                 'brightness': 0.5,
                 'contrast': 0.5,
                 'saturation': 0.5,
@@ -79,6 +97,12 @@ class FederatedServer:
 
     # ------------------------------------------------------------------
     def train(self, epochs: int = 5) -> None:
+        print(f"🚀 Starting federated training for {epochs} rounds")
+        print(f"🏢 Clients: {len(self.clients)}")
+        print(f"🖼️  Image resolution: {self.resolution_info} (resize→crop)")
+        print(f"📊 Global validation set available")
+        print("-" * 60)
+        
         for epoch in range(epochs):
             losses = []
             for c in self.clients:

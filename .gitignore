@@ -29,6 +29,7 @@ pretrained/
 data/
 wandb/
 output/
+outputs/
 notebooks/
 **/__pycache__/
 checkpoints/

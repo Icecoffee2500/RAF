@@ -23,6 +23,8 @@ from ..model_builder import build_model
 from ...dataset.builder import DatasetBuilder
 from ..metrics import compute_miou
 from ..utils.seed import set_seed
+from ..dataset_split import get_centralized_indices
+from torch.utils.data import Subset
 
 # --------------------------------------------------------------------------------------
 
@@ -172,7 +174,29 @@ class CentralizedTrainer:
         })
         
         builder = DatasetBuilder(dataset_config)
-        return builder.get_train_dataloader(), builder.get_valid_dataloader()
+        
+        # Get limited dataset indices (2100 samples total)
+        print("🎯 Using limited dataset for centralized training (2100 samples)")
+        limited_indices = get_centralized_indices(self.root)
+        
+        # Create subset of training dataset
+        train_dataset = builder.get_train_dataset()
+        limited_train_dataset = Subset(train_dataset, limited_indices)
+        
+        # Create limited training dataloader
+        from torch.utils.data import DataLoader
+        limited_train_loader = DataLoader(
+            limited_train_dataset,
+            batch_size=self.batch_size,
+            num_workers=4,
+            pin_memory=True,
+            shuffle=True
+        )
+        
+        print(f"📊 Training dataset: {len(limited_train_dataset)} samples (original: {len(train_dataset)})")
+        
+        # Keep validation dataset as is
+        return limited_train_loader, builder.get_valid_dataloader()
 
     # ------------------------------------------------------------------
     def _step(self, batch: Any) -> Dict[str, float]:
@@ -262,6 +286,15 @@ class CentralizedTrainer:
         print(f"📊 Validation every {self.eval_every} epochs")
         print(f"🎯 Dataset: {self.root}")
         print(f"🔢 Batch size: {self.batch_size}, Classes: {self.num_classes}")
+        
+        # Show actual image resolution being used
+        training_cfg = self.cfg.get("training", {})
+        crop_size = training_cfg.get("crop_size", [512, 512])
+        if isinstance(crop_size, (list, tuple)) and len(crop_size) >= 2:
+            print(f"🖼️  Image resolution: {crop_size[0]}×{crop_size[1]} (H×W)")
+        else:
+            print(f"🖼️  Image resolution: {crop_size}×{crop_size}")
+        
         print("-" * 60)
         
         # Initial validation before training starts

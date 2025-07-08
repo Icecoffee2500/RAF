@@ -1,19 +1,18 @@
 """Model builder utility.
 
 Provides `build_model` to return a SegFormer model (ViT-S backbone)
-initialized with MAE-pretrained weights from HuggingFace.
+initialized from scratch without pretrained weights.
 """
 
 from __future__ import annotations
 
 import os
-from functools import lru_cache
 from typing import Tuple
 
 import torch
 from transformers import SegformerForSemanticSegmentation, SegformerConfig  # type: ignore
 
-_HF_WEIGHTS = "nvidia/segformer-b0-finetuned-ade-512-512"  # ViT-S backbone (B0) pretrained by MAE
+_SEGFORMER_CONFIG = "nvidia/segformer-b0-finetuned-ade-512-512"  # For architecture only
 
 
 def _get_device(device_id: int | str | None = None) -> torch.device:
@@ -67,7 +66,7 @@ def _get_device(device_id: int | str | None = None) -> torch.device:
 
 
 def build_model(num_classes: int, device_id: int | str | None = None) -> Tuple[SegformerForSemanticSegmentation, torch.device]:
-    """Build SegFormer-B0 (ViT-S) model with correct num_classes.
+    """Build SegFormer-B0 model initialized from scratch (no pretrained weights).
 
     Args:
         num_classes: Number of segmentation classes.
@@ -76,16 +75,22 @@ def build_model(num_classes: int, device_id: int | str | None = None) -> Tuple[S
     Returns:
         (model, device)
     """
-
-    cfg = SegformerConfig.from_pretrained(_HF_WEIGHTS, num_labels=num_classes)
-    model = SegformerForSemanticSegmentation.from_pretrained(
-        _HF_WEIGHTS,
-        config=cfg,
-        ignore_mismatched_sizes=True,  # classifier(150→num_classes) 크기 무시하고 로드
-    )
+    print(f"🏗️  Building SegFormer-B0 from scratch with {num_classes} classes")
+    print(f"🔧 Architecture config from: {_SEGFORMER_CONFIG}")
+    print("🆕 All weights: initialized from scratch (no pretrained)")
+    print(f"🎯 Target classes: {num_classes} (Cityscapes semantic segmentation)")
+    
+    # Load configuration only (not weights)
+    config = SegformerConfig.from_pretrained(_SEGFORMER_CONFIG, num_labels=num_classes)
+    
+    # Create model with random initialization
+    model = SegformerForSemanticSegmentation(config)
+    
+    # Verify no pretrained weights were loaded
     assert isinstance(model, SegformerForSemanticSegmentation)
+    
     device = _get_device(device_id)
-    model.to(device)
+    model = model.to(device)
     
     # Print GPU memory info if using GPU
     if device.type == 'cuda':

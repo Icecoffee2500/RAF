@@ -15,25 +15,50 @@ from ...dataset.cityscapes import CityscapesDataset
 
 
 class FederatedClient:
-    def __init__(self, client_id: int, indices: list[int], root: str | Path, num_classes: int = 19, batch_size: int = 4):
+    def __init__(self, client_id: int, indices: list[int], root: str | Path, cfg=None, num_classes: int = 19, batch_size: int = 4):
         self.id = client_id
         self.root = Path(root)
         self.batch_size = batch_size
         self.model, self.device = build_model(num_classes)
         self.optimizer = torch.optim.AdamW(self.model.parameters(), lr=6e-5, weight_decay=0.01)
 
-        # 기존 transform 로직 재사용
+        # Get resolution from config (same as centralized)
+        if cfg is not None:
+            training_cfg = cfg.get("training", {})
+            crop_size = training_cfg.get("crop_size", [512, 512])
+            # Convert ListConfig to list if needed
+            if hasattr(crop_size, '__iter__') and len(crop_size) >= 2:
+                resolution = min(crop_size)
+                crop_h, crop_w = crop_size[0], crop_size[1]
+            else:
+                resolution = crop_size
+                crop_h = crop_w = crop_size
+        else:
+            # Fallback to default
+            resolution = 512
+            crop_h = crop_w = 512
+        
         transform_config = edict({
-            'resolution': 512,
-            'crop_size': 512,
+            'resolution': resolution,
+            'crop_size': min(crop_h, crop_w),  # Use square crop for now
             'brightness': 0.5,
             'contrast': 0.5,
             'saturation': 0.5,
         })
         transform = _build_transform(transform_config, is_train=True)
         
+        # Show resolution info for this client
+        final_crop_size = transform_config.crop_size
+        
         full_ds = CityscapesDataset(str(self.root), split='train', mode='fine', target_type='semantic', transform=transform)
-        self.loader = DataLoader(Subset(full_ds, indices), shuffle=True, batch_size=self.batch_size, num_workers=4)
+        subset_ds = Subset(full_ds, indices)
+        self.loader = DataLoader(subset_ds, shuffle=True, batch_size=self.batch_size, num_workers=4)
+        
+        print(f"🏢 Client {client_id}: {len(subset_ds)} samples (from {len(full_ds)} total)")
+        if cfg is not None and hasattr(crop_size, '__iter__') and len(crop_size) >= 2:
+            print(f"   📐 Resolution: {resolution}→{crop_h}×{crop_w} (resize→crop)")
+        else:
+            print(f"   📐 Resolution: {resolution}→{final_crop_size}×{final_crop_size} (resize→crop)")
 
     def train_one_epoch(self) -> Dict[str, float]:
         self.model.train()

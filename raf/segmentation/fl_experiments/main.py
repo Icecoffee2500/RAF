@@ -82,11 +82,12 @@ def _main(cfg: DictConfig) -> None:
         train_centralized(cfg)
     elif cfg.mode == "federated":
         splits = split_cityscapes(cfg.data_root)
+        training_cfg = cfg.get("training", {})
         clients = [
-            FederatedClient(cid, idxs, cfg.data_root, batch_size=cfg.get("training", {}).get("batch_size", 4)) 
+            FederatedClient(cid, idxs, cfg.data_root, cfg=cfg, batch_size=training_cfg.get("batch_size", 4)) 
             for cid, idxs in splits.items()
         ]
-        server = FederatedServer(clients, cfg.data_root)
+        server = FederatedServer(clients, cfg.data_root, cfg)
         training_cfg = cfg.get("training", {})
         epochs = training_cfg.get("epochs", 50)
         server.train(epochs)
