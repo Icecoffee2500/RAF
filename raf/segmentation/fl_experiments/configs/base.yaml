@@ -62,6 +62,12 @@ evaluation:
   test_crop_size: [512, 1024]
   eval_every: 10   # Evaluate every 10 epochs
 
+# Federated Learning configuration
+federated:
+  num_clients: 3                    # Number of clients
+  resolutions: [512, 512, 512]      # Resolution per client (square format)
+  samples_per_client: 700           # Samples per client
+
 # Logging
 logging:
   wandb:

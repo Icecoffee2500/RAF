@@ -35,6 +35,52 @@ from .trainer.federated_server import FederatedServer
 from .dataset_split import split_cityscapes
 from .utils.seed import set_seed
 
+# --- Convenience CLI preprocessing ----------------------------------------------------
+
+def _preprocess_cli_args() -> None:
+    """Convert custom flags (e.g., --resolution 512 256 128) into Hydra overrides.
+
+    This allows users to specify per-client image resolutions and number of clients
+    without writing Hydra-style dot-notation overrides.
+    """
+    import sys as _sys
+
+    new_args: list[str] = []
+    i = 0
+    while i < len(_sys.argv):
+        arg = _sys.argv[i]
+
+        # Match resolution flag (accept --resolution or -r)
+        if arg in ("--resolution", "--resolutions", "-r"):
+            i += 1
+            res_values: list[str] = []
+            # Collect subsequent numeric values
+            while i < len(_sys.argv) and not _sys.argv[i].startswith("--") and "=" not in _sys.argv[i]:
+                res_values.append(_sys.argv[i])
+                i += 1
+            if res_values:
+                res_str = ",".join(res_values)
+                new_args.append(f"federated.resolutions=[{res_str}]")
+            continue  # Skip normal increment – already advanced
+
+        # Match number of clients flag
+        if arg in ("--num_clients", "--clients"):
+            if i + 1 < len(_sys.argv):
+                num_val = _sys.argv[i + 1]
+                new_args.append(f"federated.num_clients={num_val}")
+                i += 2
+                continue
+
+        # All other args pass through unchanged
+        new_args.append(arg)
+        i += 1
+
+    # Replace argv in-place so Hydra sees converted overrides
+    _sys.argv[:] = new_args
+
+
+# --------------------------------------------------------------------------------------
+
 
 def _parse_command_line_overrides() -> dict:
     """Parse command line arguments for quick overrides."""
@@ -81,14 +127,39 @@ def _main(cfg: DictConfig) -> None:
     if cfg.mode == "central":
         train_centralized(cfg)
     elif cfg.mode == "federated":
+        # --- Dynamically adapt dataset split constants ---------------------------------
+        from . import dataset_split as _ds
+
+        _ds.NUM_CLIENTS = cfg.federated.num_clients
+        _ds.SAMPLES_PER_CLIENT = cfg.federated.get("samples_per_client", 700)
+        _ds.NUM_TOTAL_SAMPLES = _ds.NUM_CLIENTS * _ds.SAMPLES_PER_CLIENT
+
+        # -----------------------------------------------------------------------------
+
         splits = split_cityscapes(cfg.data_root)
+
+        # Prepare per-client resolutions
+        res_list = list(cfg.federated.resolutions)
+        if len(res_list) < cfg.federated.num_clients:
+            res_list.extend([res_list[-1]] * (cfg.federated.num_clients - len(res_list)))
+        elif len(res_list) > cfg.federated.num_clients:
+            res_list = res_list[: cfg.federated.num_clients]
+
         training_cfg = cfg.get("training", {})
+
         clients = [
-            FederatedClient(cid, idxs, cfg.data_root, cfg=cfg, batch_size=training_cfg.get("batch_size", 4)) 
+            FederatedClient(
+                cid,
+                idxs,
+                cfg.data_root,
+                cfg=cfg,
+                batch_size=training_cfg.get("batch_size", 4),
+                resolution=res_list[cid],
+            )
             for cid, idxs in splits.items()
         ]
+
         server = FederatedServer(clients, cfg.data_root, cfg)
-        training_cfg = cfg.get("training", {})
         epochs = training_cfg.get("epochs", 50)
         server.train(epochs)
     else:
@@ -96,4 +167,6 @@ def _main(cfg: DictConfig) -> None:
 
 
 if __name__ == "__main__":
+    # Convert convenience CLI flags to Hydra-compatible overrides before Hydra parses args
+    _preprocess_cli_args()
     _main() 

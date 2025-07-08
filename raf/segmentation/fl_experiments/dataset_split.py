@@ -18,13 +18,19 @@ import numpy as np
 from torchvision.datasets import Cityscapes
 
 
-NUM_CLIENTS = 3
-NUM_TOTAL_SAMPLES = 2100  # Total samples to use (700 per client)
-SAMPLES_PER_CLIENT = 700  # Samples per client
+# Default constants (can be overridden)
+DEFAULT_NUM_CLIENTS = 3
+DEFAULT_TOTAL_SAMPLES = 2100  # Total samples to use (700 per client)
+DEFAULT_SAMPLES_PER_CLIENT = 700  # Samples per client
 _SEED = 0
 
+# Explicit aliases used throughout the file (kept for backward-compatibility)
+NUM_CLIENTS = DEFAULT_NUM_CLIENTS
+SAMPLES_PER_CLIENT = DEFAULT_SAMPLES_PER_CLIENT
+NUM_TOTAL_SAMPLES = DEFAULT_TOTAL_SAMPLES
 
-def get_limited_dataset_indices(root: str | Path, num_samples: int = NUM_TOTAL_SAMPLES) -> List[int]:
+
+def get_limited_dataset_indices(root: str | Path, num_samples: int = DEFAULT_TOTAL_SAMPLES) -> List[int]:
     """Get a limited subset of Cityscapes train indices ensuring class coverage.
     
     Args:
