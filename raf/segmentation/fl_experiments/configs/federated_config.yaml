@@ -1,0 +1,55 @@
+defaults:
+  - base
+
+mode: federated
+
+# Federated Learning Configuration
+federated:
+  num_clients: 3  # Number of clients as implemented
+  num_rounds: 50  # Total federated rounds
+  clients_per_round: 3  # All clients participate each round
+  local_epochs: 5  # Local training epochs per round
+  
+  # Client data distribution
+  data_split:
+    method: class_balanced  # Ensure each client has all classes
+    min_samples_per_class: 100  # Minimum samples per class per client
+  
+  # Aggregation strategy
+  aggregation:
+    method: fedavg  # FedAvg algorithm
+    weighted: true  # Weight by number of samples
+  
+  # Knowledge distillation settings
+  distillation:
+    enabled: true
+    temperature: 4.0
+    alpha: 0.7  # Weight for distillation loss
+    multi_resolution: true  # Multi-resolution distillation
+    loss_weights: [1.0, 0.5, 0.25]  # Weights for different resolutions
+
+# Override training settings for federated scenario
+training:
+  batch_size: 8  # Smaller batch size for local training
+  epochs: ${federated.local_epochs}  # Use local epochs
+  
+  # Adjusted learning rate for federated setting
+  optimizer:
+    lr: 3e-5  # Slightly lower LR for federated setting
+    
+  # Reduce augmentation for stable local training
+  augmentation:
+    random_scale: [0.75, 1.25]  # Less aggressive scaling
+    
+# Evaluation settings for federated
+evaluation:
+  eval_every: 5  # Evaluate every 5 rounds
+  test_on_server: true  # Server evaluation with global model
+  test_on_clients: false  # Skip individual client evaluation
+
+# Logging for federated experiments
+logging:
+  wandb:
+    project: segformer_federated
+  save_every: 10  # Save every 10 rounds
+  log_client_metrics: true 

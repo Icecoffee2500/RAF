@@ -1,0 +1,59 @@
+mode: central
+exp_name: train1
+seed: 42
+device_id: 0
+data_root: /home/juju/taeheon_ws_backup/taeheon_ws/FL/RAF/data/cityscapes
+num_classes: 19
+training:
+  batch_size: 16
+  epochs: 200
+  crop_size:
+  - 512
+  - 1024
+  optimizer:
+    name: AdamW
+    lr: 6.0e-05
+    weight_decay: 0.01
+    betas:
+    - 0.9
+    - 0.999
+  scheduler:
+    name: poly
+    power: 1.0
+    warmup_epochs: 10
+    min_lr: 0.0
+  augmentation:
+    random_scale:
+    - 0.5
+    - 2.0
+    random_crop: true
+    random_flip: true
+    color_jitter: true
+    normalize:
+      mean:
+      - 0.485
+      - 0.456
+      - 0.406
+      std:
+      - 0.229
+      - 0.224
+      - 0.225
+model:
+  name: segformer
+  backbone: mit_b0
+  pretrained: true
+  decode_head:
+    channels: 256
+    dropout: 0.1
+evaluation:
+  metrics:
+  - mIoU
+  test_crop_size:
+  - 512
+  - 1024
+  eval_every: 10
+logging:
+  wandb:
+    project: segformer_fl
+    entity: null
+  save_every: 10

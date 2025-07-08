@@ -1,0 +1,3 @@
+- mode=central
+- data_root=/home/juju/taeheon_ws_backup/taeheon_ws/FL/RAF/data/cityscapes
+- epochs=30

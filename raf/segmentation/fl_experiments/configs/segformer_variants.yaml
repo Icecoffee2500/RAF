@@ -1,0 +1,103 @@
+# SegFormer Model Variants Configuration
+# Based on the original SegFormer paper settings
+
+# SegFormer-B0 (Smallest, fastest)
+segformer_b0:
+  model:
+    backbone: mit_b0
+    params: 3.8M  # Million parameters
+    flops: 7.9G   # GFLOPs for 512x512 input
+  training:
+    batch_size: 16
+    lr: 6e-5
+
+# SegFormer-B1  
+segformer_b1:
+  model:
+    backbone: mit_b1
+    params: 13.7M
+    flops: 16.0G
+  training:
+    batch_size: 16
+    lr: 6e-5
+
+# SegFormer-B2
+segformer_b2:
+  model:
+    backbone: mit_b2
+    params: 27.4M
+    flops: 62.4G
+  training:
+    batch_size: 16
+    lr: 6e-5
+
+# SegFormer-B3
+segformer_b3:
+  model:
+    backbone: mit_b3
+    params: 47.3M
+    flops: 79.0G
+  training:
+    batch_size: 8  # Reduced due to memory
+    lr: 6e-5
+
+# SegFormer-B4
+segformer_b4:
+  model:
+    backbone: mit_b4
+    params: 64.1M
+    flops: 95.7G
+  training:
+    batch_size: 8
+    lr: 6e-5
+
+# SegFormer-B5 (Largest, best performance)
+segformer_b5:
+  model:
+    backbone: mit_b5
+    params: 84.7M
+    flops: 131.2G
+  training:
+    batch_size: 4  # Much reduced due to memory requirements
+    lr: 6e-5
+
+# Performance benchmarks from SegFormer paper
+paper_results:
+  ade20k:
+    segformer_b0: 37.4  # mIoU
+    segformer_b1: 40.7
+    segformer_b2: 45.3
+    segformer_b3: 47.1
+    segformer_b4: 48.0
+    segformer_b5: 49.1
+    
+  cityscapes:
+    segformer_b0: 76.2  # mIoU
+    segformer_b1: 78.5
+    segformer_b2: 81.0
+    segformer_b3: 81.4
+    segformer_b4: 81.4
+    segformer_b5: 82.3
+
+# Training configurations by dataset size
+dataset_configs:
+  small_dataset:  # < 5k images
+    model_recommendation: mit_b0
+    training:
+      epochs: 100
+      batch_size: 8
+      lr: 3e-5  # Lower LR for small datasets
+      
+  medium_dataset:  # 5k-50k images  
+    model_recommendation: mit_b2
+    training:
+      epochs: 160
+      batch_size: 16
+      lr: 6e-5
+      
+  large_dataset:  # > 50k images
+    model_recommendation: mit_b4
+    training:
+      epochs: 200
+      batch_size: 16
+      lr: 6e-5 

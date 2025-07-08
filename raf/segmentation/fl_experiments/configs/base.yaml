@@ -1,0 +1,70 @@
+defaults:
+  - _self_
+
+mode: central  # or federated
+
+# Experiment configuration
+exp_name: experiment  # Default experiment name (override with exp_name=your_name)
+seed: 42              # Random seed for reproducibility
+
+# Device configuration
+device_id: 0          # Use GPU 0 by default
+# device_id: 1        # Use specific GPU (1, 2, 3, ...)
+# device_id: "cuda:1" # Use specific device string
+# device_id: "cpu"    # Force CPU usage
+
+# Dataset configuration
+data_root: /home/juju/taeheon_ws_backup/taeheon_ws/FL/RAF/data/cityscapes
+num_classes: 19  # Cityscapes classes
+
+# Training configuration (Based on SegFormer paper)
+training:
+  batch_size: 16  # SegFormer paper uses 16 for Cityscapes 
+  epochs: 200  # Common practice for Cityscapes
+  crop_size: [512, 1024]  # SegFormer paper uses 512x1024 for Cityscapes
+  
+  # Optimizer settings (From SegFormer paper)
+  optimizer:
+    name: AdamW
+    lr: 6e-5  # SegFormer paper uses 6e-5 learning rate
+    weight_decay: 0.01
+    betas: [0.9, 0.999]
+  
+  # Learning rate scheduler
+  scheduler:
+    name: poly  # SegFormer uses polynomial decay
+    power: 1.0
+    warmup_epochs: 10
+    min_lr: 0.0
+    
+  # Data augmentation (Common for semantic segmentation)
+  augmentation:
+    random_scale: [0.5, 2.0]
+    random_crop: true
+    random_flip: true
+    color_jitter: true
+    normalize:
+      mean: [0.485, 0.456, 0.406]
+      std: [0.229, 0.224, 0.225]
+
+# Model configuration  
+model:
+  name: segformer
+  backbone: mit_b0  # SegFormer-B0 (smallest variant)
+  pretrained: true  # Use ImageNet pretrained weights
+  decode_head:
+    channels: 256
+    dropout: 0.1
+    
+# Evaluation
+evaluation:
+  metrics: [mIoU]
+  test_crop_size: [512, 1024]
+  eval_every: 10   # Evaluate every 10 epochs
+
+# Logging
+logging:
+  wandb:
+    project: segformer_fl
+    entity: null
+  save_every: 10  # Save checkpoint every 10 epochs 

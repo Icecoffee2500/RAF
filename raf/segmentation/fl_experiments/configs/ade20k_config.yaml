@@ -1,0 +1,73 @@
+defaults:
+  - base
+
+# Override for ADE20K dataset (SegFormer paper settings)
+data_root: /path/to/ade20k
+num_classes: 150  # ADE20K classes
+
+# Training configuration (SegFormer paper exact settings for ADE20K)
+training:
+  batch_size: 16  # SegFormer paper
+  epochs: 160  # SegFormer trains for 160k iterations ≈ 160 epochs
+  crop_size: [512, 512]  # SegFormer paper uses 512x512 for ADE20K
+  
+  # Optimizer settings (From SegFormer paper)
+  optimizer:
+    name: AdamW
+    lr: 6e-5  # SegFormer paper exact value
+    weight_decay: 0.01
+    betas: [0.9, 0.999]
+  
+  # Learning rate scheduler (SegFormer paper)
+  scheduler:
+    name: poly  # Polynomial decay
+    power: 1.0
+    warmup_iters: 1500  # SegFormer paper uses 1500 warmup iterations
+    min_lr: 0.0
+    
+  # Data augmentation (SegFormer paper settings)
+  augmentation:
+    random_scale: [0.5, 2.0]  # SegFormer paper range
+    random_crop: true
+    random_flip: true
+    color_jitter: 
+      brightness: 0.5
+      contrast: 0.5
+      saturation: 0.5
+      hue: 0.25
+    normalize:
+      mean: [0.485, 0.456, 0.406]  # ImageNet statistics
+      std: [0.229, 0.224, 0.225]
+
+# Model configuration (SegFormer paper)
+model:
+  name: segformer
+  backbone: mit_b0  # Can use mit_b1, mit_b2, etc. for larger models
+  pretrained: true
+  decode_head:
+    channels: 256  # SegFormer decoder channels
+    dropout: 0.1
+    num_conv: 2  # Number of conv layers in decoder
+
+# Evaluation (SegFormer paper)
+evaluation:
+  metrics: [mIoU, pixel_accuracy]
+  test_crop_size: [512, 512]
+  multi_scale_test: false  # Can enable for better results
+
+# Logging
+logging:
+  wandb:
+    project: segformer_ade20k
+    entity: null
+  save_every: 20
+  eval_every: 10
+
+# Training details matching SegFormer paper
+training_details:
+  # SegFormer paper uses these exact settings
+  iterations: 160000  # 160k iterations
+  batch_accumulation: 1
+  clip_grad_norm: null  # No gradient clipping in SegFormer
+  sync_bn: true  # Synchronized batch normalization
+  find_unused_parameters: false 
