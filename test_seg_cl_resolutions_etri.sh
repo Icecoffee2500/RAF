@@ -4,6 +4,8 @@ CHECKPOINT="checkpoints/cl-segformer-pretrained/best.pth"
 # CHECKPOINT="checkpoints/fl-segformer-512_512_256-gpu2_federated/best.pth"
 # CHECKPOINT="checkpoints/fl-segformer-512_512_512-gpu3_federated/best.pth"
 
+DATA_ROOT="/home/user_cau/taeheon_ws/RAF/data/cityscapes"
+
 resolutions=(
     "128 256"
     "256 512" 
@@ -17,6 +19,6 @@ for res in "${resolutions[@]}"; do
     python -m raf.segmentation.fl_experiments.test \
            --checkpoint $CHECKPOINT \
            --resolution $res \
-           data_root=/home/user_cau/taeheon_ws/RAF/data/cityscapes
+           --data_root $DATA_ROOT
     echo "---"
 done
