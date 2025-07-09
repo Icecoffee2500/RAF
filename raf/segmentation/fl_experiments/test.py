@@ -49,7 +49,10 @@ def load_checkpoint(checkpoint_path: str | Path, device_id: int | str | None = N
     set_seed(seed)
     
     # Build model
-    model, device = build_model(num_classes, device_id)
+    # Use same pretrained flag as training
+    model_cfg = config.get("model", {})
+    pretrained_flag = model_cfg.get("pretrained", False)
+    model, device = build_model(num_classes, device_id, pretrained_encoder=pretrained_flag)
     
     # Load weights
     model.load_state_dict(checkpoint['model_state_dict'])
@@ -69,7 +72,9 @@ def load_checkpoint(checkpoint_path: str | Path, device_id: int | str | None = N
 
 def create_test_dataloader(config: Dict[str, Any]) -> DataLoader:
     """Create test dataloader from config."""
+    # Use same batch size as training for consistency
     training_cfg = config.get("training", {})
+    batch_size = training_cfg.get("batch_size", 1)
     crop_size = training_cfg.get("crop_size", [512, 512])
     
     # Handle ListConfig
@@ -89,8 +94,8 @@ def create_test_dataloader(config: Dict[str, Any]) -> DataLoader:
         'valid_split': 'val',
         'mode': 'gtFine',
         'target_type': 'semantic',
-        'train_batch_size': 1,  # Use batch size 1 for testing
-        'valid_batch_size': 1,
+        'train_batch_size': batch_size,
+        'valid_batch_size': batch_size,
         'num_workers': 4,
         'pin_memory': True,
         'transform_config': edict({
