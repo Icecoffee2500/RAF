@@ -59,13 +59,20 @@ def load_checkpoint(checkpoint_path: str | Path, device_id: int | str | None = N
     model.eval()
     
     checkpoint_info = {
-        'epoch': checkpoint['epoch'],
+        'epoch': checkpoint.get('epoch', checkpoint.get('round', 0)),  # Handle both centralized and federated
         'best_miou': checkpoint['best_miou'],
         'metrics': checkpoint['metrics']
     }
     
     print(f"✅ Model loaded from epoch {checkpoint_info['epoch']}")
-    print(f"🏆 Checkpoint mIoU: {checkpoint_info['metrics']['val_miou']:.3f}")
+    # Handle both centralized and federated checkpoint formats
+    if 'val_miou' in checkpoint_info['metrics']:
+        miou_val = checkpoint_info['metrics']['val_miou']
+    elif 'global_val_miou' in checkpoint_info['metrics']:
+        miou_val = checkpoint_info['metrics']['global_val_miou']
+    else:
+        miou_val = 0.0
+    print(f"🏆 Checkpoint mIoU: {miou_val:.3f}")
     
     return model, device, config, checkpoint_info
 
@@ -185,9 +192,15 @@ def main() -> None:
         print(f"   Samples: {results['num_samples']}")
         print("-" * 60)
         
-        # Compare with checkpoint metrics
+        # Handle both centralized ('val_miou') and federated ('global_val_miou') formats
         if 'val_miou' in checkpoint_info['metrics']:
             val_miou = checkpoint_info['metrics']['val_miou']
+        elif 'global_val_miou' in checkpoint_info['metrics']:
+            val_miou = checkpoint_info['metrics']['global_val_miou']
+        else:
+            val_miou = None
+        
+        if val_miou is not None:
             print(f"📈 Comparison:")
             print(f"   Validation mIoU: {val_miou:.3f}")
             print(f"   Test mIoU: {results['test_miou']:.3f}")
