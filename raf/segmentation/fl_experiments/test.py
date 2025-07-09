@@ -13,6 +13,7 @@ from pathlib import Path
 from typing import Dict, Any
 
 import torch
+from torch.utils.data import DataLoader
 from easydict import EasyDict as edict
 from omegaconf import DictConfig, OmegaConf
 
@@ -66,7 +67,7 @@ def load_checkpoint(checkpoint_path: str | Path, device_id: int | str | None = N
     return model, device, config, checkpoint_info
 
 
-def create_test_dataloader(config: Dict[str, Any]) -> torch.utils.data.DataLoader:
+def create_test_dataloader(config: Dict[str, Any]) -> DataLoader:
     """Create test dataloader from config."""
     training_cfg = config.get("training", {})
     crop_size = training_cfg.get("crop_size", [512, 512])
@@ -106,7 +107,7 @@ def create_test_dataloader(config: Dict[str, Any]) -> torch.utils.data.DataLoade
 
 
 @torch.no_grad()
-def evaluate_model(model: torch.nn.Module, dataloader: torch.utils.data.DataLoader, 
+def evaluate_model(model: torch.nn.Module, dataloader: DataLoader, 
                   device: torch.device, num_classes: int = 19) -> Dict[str, float]:
     """Evaluate model on test data."""
     model.eval()
@@ -145,6 +146,8 @@ def main() -> None:
                        help="Device to run on (e.g., cuda:0, cpu)")
     parser.add_argument("--data_root", type=str, default=None,
                        help="Override data root path")
+    parser.add_argument("--resolution", type=int, nargs=2, default=None,
+                       help="Override test resolution [height, width] (e.g., --resolution 512 1024)")
     
     args = parser.parse_args()
     
@@ -156,6 +159,11 @@ def main() -> None:
         if args.data_root:
             config['data_root'] = args.data_root
             print(f"📁 Using data root: {args.data_root}")
+        
+        # Override resolution if provided
+        if args.resolution:
+            config['training']['crop_size'] = args.resolution
+            print(f"🖼️  Using test resolution: {args.resolution[0]}×{args.resolution[1]}")
         
         # Create test dataloader
         test_loader = create_test_dataloader(config)
