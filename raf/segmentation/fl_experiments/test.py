@@ -126,11 +126,13 @@ def evaluate_model(model: torch.nn.Module, dataloader: DataLoader,
     
     losses = []
     ious = []
+    total_samples = 0
     
     print("🔍 Running evaluation...")
     
     for i, (imgs, labels) in enumerate(dataloader):
         imgs, labels = imgs.to(device), labels.to(device)
+        total_samples += imgs.size(0)  # Count actual samples in this batch
         outputs = model(pixel_values=imgs, labels=labels)
         losses.append(outputs.loss.item())
         
@@ -144,7 +146,8 @@ def evaluate_model(model: torch.nn.Module, dataloader: DataLoader,
     results = {
         "test_loss": float(sum(losses) / len(losses)),
         "test_miou": float(sum(ious) / len(ious)),
-        "num_samples": len(dataloader)
+        "num_batches": len(dataloader),
+        "num_samples": total_samples  # Total images processed
     }
     
     return results
@@ -189,7 +192,7 @@ def main() -> None:
         print("📊 Test Results:")
         print(f"   Test Loss: {results['test_loss']:.4f}")
         print(f"   Test mIoU: {results['test_miou']:.3f}")
-        print(f"   Samples: {results['num_samples']}")
+        print(f"   Samples: {results['num_samples']} (in {results['num_batches']} batches)")
         print("-" * 60)
         
         # Handle both centralized ('val_miou') and federated ('global_val_miou') formats
