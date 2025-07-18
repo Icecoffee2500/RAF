@@ -157,8 +157,10 @@ def _main(cfg: DictConfig) -> None:
 
         # Prepare per-client resolutions
         res_list = list(cfg.federated.resolutions)
+        # resolution 개수가 클라이언트 개수보다 작으면 마지막 resolution을 반복
         if len(res_list) < cfg.federated.num_clients:
             res_list.extend([res_list[-1]] * (cfg.federated.num_clients - len(res_list)))
+        # resolution 개수가 클라이언트 개수보다 크면 처음부터 클라이언트 개수만큼만 사용
         elif len(res_list) > cfg.federated.num_clients:
             res_list = res_list[: cfg.federated.num_clients]
 
@@ -170,7 +172,7 @@ def _main(cfg: DictConfig) -> None:
                 idxs,
                 cfg.data_root,
                 cfg=cfg,
-                batch_size=training_cfg.get("batch_size", 4),
+                batch_size=training_cfg.get("batch_size", 8),
                 resolution=res_list[cid],
             )
             for cid, idxs in splits.items()

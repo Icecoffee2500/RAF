@@ -80,7 +80,7 @@ def build_model(num_classes: int, device_id: int | str | None = None, *, pretrai
     if pretrained_encoder:
         print("🔄 Loading ImageNet-pretrained encoder weights (SegFormer MiT)")
     else:
-        print("🆕 All weights: initialized from scratch (no pretrained)")
+    print("🆕 All weights: initialized from scratch (no pretrained)")
     print(f"🎯 Target classes: {num_classes} (Cityscapes semantic segmentation)")
     
     # Load configuration only (not weights)
@@ -93,8 +93,8 @@ def build_model(num_classes: int, device_id: int | str | None = None, *, pretrai
             ignore_mismatched_sizes=True,
         )
     else:
-        # Create model with random initialization
-        model = SegformerForSemanticSegmentation(config)
+    # Create model with random initialization
+    model = SegformerForSemanticSegmentation(config)
     
     # Verify no pretrained weights were loaded
     assert isinstance(model, SegformerForSemanticSegmentation)

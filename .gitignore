@@ -33,6 +33,7 @@ outputs/
 notebooks/
 **/__pycache__/
 checkpoints/
+checkpoints_etri/
 
 # PyInstaller
 #  Usually these files are written by a python script from a template

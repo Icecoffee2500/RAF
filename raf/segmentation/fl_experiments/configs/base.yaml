@@ -19,9 +19,9 @@ num_classes: 19  # Cityscapes classes
 
 # Training configuration (Based on SegFormer paper)
 training:
-  batch_size: 16  # SegFormer paper uses 16 for Cityscapes 
-  epochs: 200  # Common practice for Cityscapes
-  crop_size: [512, 1024]  # SegFormer paper uses 512x1024 for Cityscapes
+  batch_size: 8  # SegFormer paper uses 8 for Cityscapes 
+  epochs: 430  # Common practice for Cityscapes
+  crop_size: [1024, 1024]  # SegFormer paper uses 1024x1024 for Cityscapes
   
   # Optimizer settings (From SegFormer paper)
   optimizer:
