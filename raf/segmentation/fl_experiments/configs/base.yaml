@@ -66,7 +66,7 @@ scheduler:
 # ------------------------------- train & eval settings -----------------------------------------
 # Training configuration (Based on SegFormer paper)
 training:
-  batch_size: 4  # SegFormer paper uses 8 for Cityscapes 
+  batch_size: 8  # SegFormer paper uses 8 for Cityscapes 
   epochs: 430  # Common practice for Cityscapes
   # crop_size: [1024, 1024]  # SegFormer paper uses 1024x1024 for Cityscapes
   # 이건 왜 training에 있지?

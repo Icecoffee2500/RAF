@@ -7,6 +7,9 @@ python -m raf.segmentation.fl_experiments.main
 # Custom experiment name
 python -m raf.segmentation.fl_experiments.main exp_name=segformer_cl
 
+# ETRI experiment
+python -m raf.segmentation.fl_experiments.main exp_name=segformer_cl data.data_root=/home/user_cau/taeheon_ws/RAF/data/cityscapes
+
 # Full example with all options
 python -m raf.segmentation.fl_experiments.main exp_name=segformer_gpu1 device_id=1 mode=central data_root=/path/to/your/data
 
