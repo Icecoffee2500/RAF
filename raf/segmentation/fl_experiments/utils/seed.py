@@ -51,4 +51,4 @@ def get_generator(seed: int = 42) -> torch.Generator:
     """
     generator = torch.Generator()
     generator.manual_seed(seed)
-    return generator 
+    return generator

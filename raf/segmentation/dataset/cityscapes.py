@@ -22,11 +22,18 @@ class CityscapesDataset(Dataset):
     train_id_to_color = [c.color for c in Cityscapes.classes if (c.train_id != -1 and c.train_id != 255)]
     train_id_to_color.append([0, 0, 0])
     train_id_to_color = np.array(train_id_to_color)
-    id_to_train_id = np.array([c.train_id for c in Cityscapes.classes])
 
-    def __init__(self, root, split='train', mode='fine', target_type='semantic', transform=None):
+    # Create a full mapping table from original ID to train_id.
+    # This handles all possible pixel values from 0-255.
+    # Any ID not in Cityscapes.classes will remain mapped to 255 (ignore_index).
+    _id_to_train_id_map = np.full(256, 255, dtype=np.uint8)
+    for c in Cityscapes.classes:
+        _id_to_train_id_map[c.id] = c.train_id
+    id_to_train_id = _id_to_train_id_map
+
+    def __init__(self, root, split='train', mode='gtFine', target_type='semantic', transform=None):
         self.root = Path(root).expanduser()
-        self.mode = 'gtFine'
+        self.mode = mode
         self.target_type = target_type
         self.images_dir = self.root / 'leftImg8bit' / split
 

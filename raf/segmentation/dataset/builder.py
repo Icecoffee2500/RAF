@@ -1,7 +1,7 @@
 from raf.segmentation.dataset.cityscapes import CityscapesDataset
 from raf.segmentation.dataset.transforms import (
-    Compose, RandomCrop, Resize,
-    ColorJitter, RandomHorizontalFlip,
+    Compose, RandomCrop, Resize, RandomScale,
+    ShortSideResize, RandomHorizontalFlip,
     ToTensor, Normalize
 )
 import torch
@@ -66,21 +66,53 @@ class DatasetBuilder:
         return self.valid_dataset
 
 def _build_transform(transform_config: dict, is_train: bool = True):
+    # The config is an easydict, so we can access keys with dot notation
+
     transforms = []
-    transforms.append(Resize(transform_config.resolution))
     if is_train:
-        transforms.append(RandomCrop(size=(transform_config.crop_size, transform_config.crop_size)))
-        transforms.append(ColorJitter(
-            brightness=transform_config.brightness,
-            contrast=transform_config.contrast,
-            saturation=transform_config.saturation,
-        ))
-        transforms.append(RandomHorizontalFlip())
+        # For training, use SegFormer-style augmentations
+        # 1. Random Resize with a ratio from a given range
+        if transform_config.get('random_scale'):
+            transforms.append(RandomScale(scale_range=transform_config.get('random_scale')))
+        
+        # 2. Random Horizontal Flip
+        if transform_config.get('random_flip'):
+            transforms.append(RandomHorizontalFlip())
+        
+        # 3. Random Crop to a fixed size
+        # if transform_config.get('train_crop_size'):
+        #     transforms.append(
+        #         RandomCrop(
+        #             size=transform_config.get('train_crop_size'),
+        #             pad_if_needed=True
+        #         )
+        #     )
+        if transform_config.get('train_crop_size'):
+            transforms.append(
+                RandomCrop(  # 위에서 정의한 custom RandomCrop
+                    size=transform_config.get('train_crop_size'),
+                    pad_if_needed=True,  # 활성화
+                    # pad_mode='constant',  # zero-pad
+                    image_pad_value=0,    # image black pad
+                    label_ignore_index=255  # label ignore (Cityscapes)
+                )
+            )
+        
+    else:
+        # # For validation, use a fixed resize
+        # transforms.append(Resize(transform_config.resolution))
+        if transform_config.get('train_crop_size'):  # short side size = training crop size (e.g., 1024 for Cityscapes)
+            transforms.append(ShortSideResize(
+                short_side_size=transform_config.get('train_crop_size')[0]
+                ))  # Assume square, or adjust
+
     transforms.append(ToTensor())
-    transforms.append(Normalize(
-        mean=[0.485, 0.456, 0.406],
-        std=[0.229, 0.224, 0.225]
-    ))
+    transforms.append(
+        Normalize(
+            mean=transform_config.normalize.mean,
+            std=transform_config.normalize.std
+            )
+        )
     transform = Compose(transforms)
     return transform
 

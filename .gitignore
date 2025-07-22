@@ -26,6 +26,7 @@ share/python-wheels/
 MANIFEST
 
 pretrained/
+# pretrained_weights_segformer/
 data/
 wandb/
 output/

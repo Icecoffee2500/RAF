@@ -2,11 +2,12 @@ import collections
 import torchvision
 import torch
 import torchvision.transforms.functional as F
+import torchvision.transforms as transforms
 import random 
 import numbers
 import numpy as np
 from PIL import Image
-
+import torchvision.transforms.functional as TF  # PIL F.resize 등 위해
 
 #
 #  Extended Transforms for Semantic Segmentation
@@ -324,77 +325,162 @@ class Normalize(object):
         return self.__class__.__name__ + '(mean={0}, std={1})'.format(self.mean, self.std)
 
 
+# class RandomCrop(object):
+#     """Crop the given PIL Image at a random location.
+#     Args:
+#         size (sequence or int): Desired output size of the crop. If size is an
+#             int instead of sequence like (h, w), a square crop (size, size) is
+#             made.
+#         padding (int or sequence, optional): Optional padding on each border
+#             of the image. Default is 0, i.e no padding. If a sequence of length
+#             4 is provided, it is used to pad left, top, right, bottom borders
+#             respectively.
+#         pad_if_needed (boolean): It will pad the image if smaller than the
+#             desired size to avoid raising an exception.
+#     """
+
+#     def __init__(self, size, padding=0, pad_if_needed=False):
+#         if isinstance(size, numbers.Number):
+#             self.size = (int(size), int(size))
+#         else:
+#             self.size = size
+#         self.padding = padding
+#         self.pad_if_needed = pad_if_needed
+
+#     @staticmethod
+#     def get_params(img, output_size):
+#         """Get parameters for ``crop`` for a random crop.
+#         Args:
+#             img (PIL Image): Image to be cropped.
+#             output_size (tuple): Expected output size of the crop.
+#         Returns:
+#             tuple: params (i, j, h, w) to be passed to ``crop`` for random crop.
+#         """
+#         w, h = img.size
+#         th, tw = output_size
+#         if w == tw and h == th:
+#             return 0, 0, h, w
+
+#         i = random.randint(0, h - th)
+#         j = random.randint(0, w - tw)
+#         return i, j, th, tw
+
+#     def __call__(self, img, lbl):
+#         """
+#         Args:
+#             img (PIL Image): Image to be cropped.
+#             lbl (PIL Image): Label to be cropped.
+#         Returns:
+#             PIL Image: Cropped image.
+#             PIL Image: Cropped label.
+#         """
+#         assert img.size == lbl.size, 'size of img and lbl should be the same. %s, %s'%(img.size, lbl.size)
+#         if self.padding > 0:
+#             img = F.pad(img, self.padding)
+#             # Use a fill value that will be ignored by the loss function.
+#             # Cityscapes labels use 255 as the ignore index.
+#             lbl = F.pad(lbl, self.padding, fill=255)
+
+#         if self.pad_if_needed:
+#             img_w, img_h = img.size
+#             crop_h, crop_w = self.size
+#             pad_h = max(crop_h - img_h, 0)
+#             pad_w = max(crop_w - img_w, 0)
+
+#             if pad_h > 0 or pad_w > 0:
+#                 padding = (pad_w // 2, pad_h // 2, pad_w - (pad_w // 2), pad_h - (pad_h // 2))
+#                 img = F.pad(img, padding, fill=0)
+#                 lbl = F.pad(lbl, padding, fill=255)
+
+#         i, j, h, w = self.get_params(img, self.size)
+
+#         return F.crop(img, i, j, h, w), F.crop(lbl, i, j, h, w)
+
+#     def __repr__(self):
+#         return self.__class__.__name__ + '(size={0}, padding={1})'.format(self.size, self.padding)
+
 class RandomCrop(object):
-    """Crop the given PIL Image at a random location.
-    Args:
-        size (sequence or int): Desired output size of the crop. If size is an
-            int instead of sequence like (h, w), a square crop (size, size) is
-            made.
-        padding (int or sequence, optional): Optional padding on each border
-            of the image. Default is 0, i.e no padding. If a sequence of length
-            4 is provided, it is used to pad left, top, right, bottom borders
-            respectively.
-        pad_if_needed (boolean): It will pad the image if smaller than the
-            desired size to avoid raising an exception.
-    """
-
-    def __init__(self, size, padding=0, pad_if_needed=False):
-        if isinstance(size, numbers.Number):
-            self.size = (int(size), int(size))
-        else:
-            self.size = size
-        self.padding = padding
-        self.pad_if_needed = pad_if_needed
-
-    @staticmethod
-    def get_params(img, output_size):
-        """Get parameters for ``crop`` for a random crop.
-        Args:
-            img (PIL Image): Image to be cropped.
-            output_size (tuple): Expected output size of the crop.
-        Returns:
-            tuple: params (i, j, h, w) to be passed to ``crop`` for random crop.
+    def __init__(self, size, pad_if_needed=False, image_pad_value=0, label_ignore_index=255):
         """
-        w, h = img.size
-        th, tw = output_size
-        if w == tw and h == th:
-            return 0, 0, h, w
+        Random crop with optional padding if image < crop size.
 
-        i = random.randint(0, h - th)
-        j = random.randint(0, w - tw)
-        return i, j, th, tw
+        Args:
+            size (tuple): Crop size (height, width), e.g., (1024, 1024)
+            pad_if_needed (bool): If True, pad if image < size (using numpy.pad)
+            image_pad_value (int/float/tuple): Padding value for image (e.g., 0 for black)
+            label_ignore_index (int): Padding value for label (e.g., 255 for ignore)
+        """
+        if isinstance(size, int):
+            self.size = (size, size)
+        else:
+            self.size = size  # (height, width)
+        self.pad_if_needed = pad_if_needed
+        self.image_pad_value = image_pad_value
+        self.label_ignore_index = label_ignore_index
 
-    def __call__(self, img, lbl):
+    def __call__(self, img: Image.Image, lbl: Image.Image) -> tuple[Image.Image, Image.Image]:
         """
         Args:
             img (PIL Image): Image to be cropped.
             lbl (PIL Image): Label to be cropped.
+
         Returns:
-            PIL Image: Cropped image.
-            PIL Image: Cropped label.
+            PIL Image: Randomly cropped image.
+            PIL Image: Randomly cropped label.
         """
-        assert img.size == lbl.size, 'size of img and lbl should be the same. %s, %s'%(img.size, lbl.size)
-        if self.padding > 0:
-            img = F.pad(img, self.padding)
-            lbl = F.pad(lbl, self.padding)
+        assert img.size == lbl.size, "Image and label must be the same size"
 
-        # pad the width if needed
-        if self.pad_if_needed and img.size[0] < self.size[1]:
-            img = F.pad(img, padding=int((1 + self.size[1] - img.size[0]) / 2))
-            lbl = F.pad(lbl, padding=int((1 + self.size[1] - lbl.size[0]) / 2))
+        w, h = img.size  # (width, height)
+        crop_h, crop_w = self.size
 
-        # pad the height if needed
-        if self.pad_if_needed and img.size[1] < self.size[0]:
-            img = F.pad(img, padding=int((1 + self.size[0] - img.size[1]) / 2))
-            lbl = F.pad(lbl, padding=int((1 + self.size[0] - lbl.size[1]) / 2))
+        # Padding if needed (scale 후 크기 부족 시) - numpy로 구현 (torch 버전 이슈 피함)
+        if self.pad_if_needed and (w < crop_w or h < crop_h):
+            pad_left = max(0, crop_w - w) // 2
+            pad_right = max(0, crop_w - w - pad_left)
+            pad_top = max(0, crop_h - h) // 2
+            pad_bottom = max(0, crop_h - h - pad_top)
 
-        i, j, h, w = self.get_params(img, self.size)
+            # PIL to numpy
+            img_np = np.array(img)
+            lbl_np = np.array(lbl)
 
-        return F.crop(img, i, j, h, w), F.crop(lbl, i, j, h, w)
+            # Pad image (constant value)
+            img_padded_np = np.pad(img_np, ((pad_top, pad_bottom), (pad_left, pad_right), (0, 0)), mode='constant', constant_values=self.image_pad_value)
+
+            # Pad label (constant ignore_index)
+            lbl_padded_np = np.pad(lbl_np, ((pad_top, pad_bottom), (pad_left, pad_right)), mode='constant', constant_values=self.label_ignore_index)
+
+            # Back to PIL
+            img = Image.fromarray(img_padded_np)
+            lbl = Image.fromarray(lbl_padded_np)
+
+            # Update sizes after padding
+            w, h = img.size
+
+        # Random crop offsets
+        i = random.randint(0, h - crop_h)
+        j = random.randint(0, w - crop_w)
+
+        # Crop using torchvision F.crop (PIL 기반)
+        return TF.crop(img, i, j, crop_h, crop_w), TF.crop(lbl, i, j, crop_h, crop_w)
 
     def __repr__(self):
-        return self.__class__.__name__ + '(size={0}, padding={1})'.format(self.size, self.padding)
+        return self.__class__.__name__ + f'(size={self.size}, pad_if_needed={self.pad_if_needed})'
 
+class ShortSideResize:
+    """Short side를 지정된 크기로 rescale, aspect ratio 유지 (논문 eval 방식)."""
+    def __init__(self, short_side_size: int):
+        self.short_side_size = short_side_size
+
+    def __call__(self, img: Image.Image) -> Image.Image:
+        width, height = img.size
+        if width < height:
+            new_width = self.short_side_size
+            new_height = int(height * (self.short_side_size / width))
+        else:
+            new_height = self.short_side_size
+            new_width = int(width * (self.short_side_size / height))
+        return img.resize((new_width, new_height), Image.BILINEAR)  # BILINEAR for quality
 
 class Resize(object):
     """Resize the input PIL Image to the given size.
@@ -424,7 +510,7 @@ class Resize(object):
 
     def __repr__(self):
         interpolate_str = _pil_interpolation_to_str[self.interpolation]
-        return self.__class__.__name__ + '(size={0}, interpolation={1})'.format(self.size, interpolate_str) 
+        return self.__class__.__name__ + '(size={0}, interpolation={1})'.format(self.size, interpolate_str)
     
 class ColorJitter(object):
     """Randomly change the brightness, contrast and saturation of an image.

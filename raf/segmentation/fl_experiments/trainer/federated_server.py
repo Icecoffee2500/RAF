@@ -12,11 +12,9 @@ from torch.utils.data import DataLoader
 from easydict import EasyDict as edict
 
 try:
-    import wandb
-    WANDB_AVAILABLE = True
+    from wandb.sdk.wandb_run import Run as WandbRun
 except ImportError:
-    WANDB_AVAILABLE = False
-    print("Warning: wandb not available. Install with 'pip install wandb' for logging.")
+    WandbRun = None
 
 from ..model_builder import build_model
 from .federated_client import FederatedClient
@@ -25,18 +23,22 @@ from ..metrics import compute_miou
 
 
 class FederatedServer:
-    def __init__(self, clients: List[FederatedClient], data_root: str, cfg=None):
+    def __init__(self, clients: List[FederatedClient], data_root: str, cfg=None, wandb_run: WandbRun | None = None, checkpoint_dir: Path | None = None):
         self.clients = clients
+        self.wandb_run = wandb_run
         self.cfg = cfg
         # initialize global model from first client
         self.global_state = self.clients[0].get_state()
-        
-        # Checkpoint tracking (same as centralized)
+
+        # Checkpoint tracking
         self.best_miou = 0.0
-        exp_name = cfg.get("exp_name", "experiment") if cfg else "experiment"
-        self.checkpoint_dir = Path("checkpoints") / f"{exp_name}_federated"
-        self.checkpoint_dir.mkdir(parents=True, exist_ok=True)
-        
+        if checkpoint_dir:
+            self.checkpoint_dir = checkpoint_dir
+        else:
+            # Fallback for standalone usage
+            exp_name = cfg.get("exp_name", "experiment") if cfg else "experiment"
+            self.checkpoint_dir = Path("checkpoints") / f"{exp_name}_federated"
+            self.checkpoint_dir.mkdir(parents=True, exist_ok=True)
         # create validation set for evaluation (use same config as centralized)
         if cfg is not None:
             training_cfg = cfg.get("training", {})
@@ -76,62 +78,6 @@ class FederatedServer:
         })
         builder = DatasetBuilder(dataset_config)
         self.val_loader = builder.get_valid_dataloader()
-        
-        # Initialize wandb if available and configured
-        self._init_wandb()
-
-    # ------------------------------------------------------------------
-    def _init_wandb(self) -> None:
-        """Initialize wandb logging if available and configured."""
-        if not WANDB_AVAILABLE:
-            return
-            
-        if not self.cfg:
-            print("ℹ️  No config available for wandb initialization")
-            return
-            
-        logging_cfg = self.cfg.get("logging", {})
-        wandb_cfg = logging_cfg.get("wandb", {})
-        
-        if wandb_cfg and wandb_cfg.get("project"):
-            # Convert config to dict for wandb compatibility
-            try:
-                from omegaconf import OmegaConf
-                config_dict = OmegaConf.to_container(self.cfg, resolve=True)
-                if not isinstance(config_dict, dict):
-                    config_dict = {"mode": "federated", "clients": len(self.clients)}
-            except ImportError:
-                config_dict = {"mode": "federated", "clients": len(self.clients)}
-            except Exception as e:
-                print(f"⚠️  Warning: Could not convert config for wandb: {e}")
-                config_dict = {"mode": "federated", "clients": len(self.clients)}
-            
-            try:
-                # Get experiment name from config and add timestamp
-                base_exp_name = self.cfg.get("exp_name", "experiment")
-                timestamp = time.strftime("%y%m%d%H%M", time.localtime())
-                exp_name = f"{base_exp_name}_federated_{timestamp}"
-                
-                wandb.init(
-                    project=wandb_cfg.get("project", "segformer_experiments"),
-                    entity=wandb_cfg.get("entity", None),
-                    config=config_dict,
-                    name=exp_name,
-                    tags=["federated", "segformer", f"{len(self.clients)}clients"]
-                )
-                
-                # Define x-axis for important metrics
-                wandb.define_metric("round")
-                wandb.define_metric("avg_client_loss", step_metric="round")
-                wandb.define_metric("global_val_loss", step_metric="round")
-                wandb.define_metric("global_val_miou", step_metric="round")
-                
-                print(f"✅ Wandb initialized for federated: {wandb_cfg.get('project')}")
-            except Exception as e:
-                print(f"⚠️  Warning: Failed to initialize wandb: {e}")
-                print("ℹ️  Continuing without wandb logging...")
-        else:
-            print("ℹ️  Wandb not configured (no project specified)")
 
     # ------------------------------------------------------------------
     def aggregate(self) -> None:
@@ -237,14 +183,14 @@ class FederatedServer:
               f"mIoU: {initial_metrics['global_val_miou']:.3f}")
         
         # Log initial validation to wandb
-        if WANDB_AVAILABLE and wandb.run is not None:
+        if self.wandb_run:
             try:
                 initial_wandb_metrics = {
                     "global_val_loss": initial_metrics["global_val_loss"],
                     "global_val_miou": initial_metrics["global_val_miou"],
                     "round": 0  # Use round 0 for initial validation
                 }
-                wandb.log(initial_wandb_metrics)
+                self.wandb_run.log(initial_wandb_metrics)
             except Exception as e:
                 print(f"⚠️  Warning: Failed to log initial validation to wandb: {e}")
         
@@ -308,9 +254,9 @@ class FederatedServer:
                       f"Time: {round_time:.1f}s")
             
             # Log to wandb if available
-            if WANDB_AVAILABLE and wandb.run is not None:
+            if self.wandb_run:
                 try:
-                    wandb.log(round_metrics)
+                    self.wandb_run.log(round_metrics)
                 except Exception as e:
                     print(f"⚠️  Warning: Failed to log to wandb: {e}")
             
@@ -329,18 +275,15 @@ class FederatedServer:
         print(f"🏢 Total rounds: {epochs}")
         print(f"👥 Clients participated: {len(self.clients)}")
         
-        # Finalize wandb
-        if WANDB_AVAILABLE and wandb.run is not None:
+        # Log final summary metrics to wandb (don't finish run here)
+        if self.wandb_run:
             try:
-                # Log final summary metrics
-                wandb.log({
+                self.wandb_run.log({
                     "total_training_time": total_training_time,
-                    "average_time_per_round": total_training_time/epochs,
+                    "average_time_per_round": total_training_time/epochs if epochs > 0 else 0,
                     "best_global_miou": self.best_miou,
                     "total_rounds": epochs,
                     "num_clients": len(self.clients)
                 })
-                wandb.finish()
-                print("📊 Wandb logging completed and closed")
             except Exception as e:
-                print(f"⚠️  Warning: Failed to finalize wandb: {e}") 
+                print(f"⚠️  Warning: Failed to log final summary to wandb: {e}")

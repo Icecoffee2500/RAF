@@ -1,6 +1,7 @@
 defaults:
   - _self_
 
+# ---------------------------------- basic settings -----------------------------------------
 mode: central  # or federated
 
 # Experiment configuration
@@ -13,64 +14,74 @@ device_id: 0          # Use GPU 0 by default
 # device_id: "cuda:1" # Use specific device string
 # device_id: "cpu"    # Force CPU usage
 
-# Dataset configuration
-data_root: /home/juju/taeheon_ws_backup/taeheon_ws/FL/RAF/data/cityscapes
-num_classes: 19  # Cityscapes classes
+# Logging
+logging:
+  wandb:
+    project: segformer_cl # segformer_fl
+    entity: null
+  save_every: 10  # Save checkpoint every 10 epochs ### 지금 아무데도 들어가고 있지 않음!!! ###
 
-# Training configuration (Based on SegFormer paper)
-training:
-  batch_size: 8  # SegFormer paper uses 8 for Cityscapes 
-  epochs: 430  # Common practice for Cityscapes
-  crop_size: [1024, 1024]  # SegFormer paper uses 1024x1024 for Cityscapes
-  
-  # Optimizer settings (From SegFormer paper)
-  optimizer:
-    name: AdamW
-    lr: 6e-5  # SegFormer paper uses 6e-5 learning rate
-    weight_decay: 0.01
-    betas: [0.9, 0.999]
-  
-  # Learning rate scheduler
-  scheduler:
-    name: poly  # SegFormer uses polynomial decay
-    power: 1.0
-    warmup_epochs: 10
-    min_lr: 0.0
-    
-  # Data augmentation (Common for semantic segmentation)
-  augmentation:
+# ------------------------------- data & model settings -----------------------------------------
+# Dataset configuration
+data:
+  name: cityscapes
+  data_root: /home/juju/taeheon_ws_backup/taeheon_ws/FL/RAF/data/cityscapes
+  split_seed: 0    # Seed for deterministic dataset splitting
+  num_classes: 19  # Cityscapes classes
+  num_workers: 4
+  pin_memory: true
+  transforms:
     random_scale: [0.5, 2.0]
-    random_crop: true
     random_flip: true
-    color_jitter: true
+    train_random_crop: [1024, 1024]
+    eval_random_crop: [1024, 1024]
     normalize:
       mean: [0.485, 0.456, 0.406]
       std: [0.229, 0.224, 0.225]
 
 # Model configuration  
 model:
-  name: segformer
-  backbone: mit_b0  # SegFormer-B0 (smallest variant)
+  name: segformer ### 지금 아무데도 들어가고 있지 않음!!! ###
+  backbone: mit_b0  # SegFormer-B0 (smallest variant) ### 지금 아무데도 들어가고 있지 않음!!! ###
   pretrained: true  # Use ImageNet pretrained weights
-  decode_head:
-    channels: 256
-    dropout: 0.1
-    
+  decode_head: ### 지금 아무데도 들어가고 있지 않음!!! ###
+    channels: 256 ### 지금 아무데도 들어가고 있지 않음!!! ###
+    dropout: 0.1 ### 지금 아무데도 들어가고 있지 않음!!! ###
+
+# Optimizer settings (From SegFormer paper)
+optimizer:
+  name: AdamW
+  lr: 6e-5  # SegFormer paper uses 6e-5 learning rate
+  weight_decay: 0.01
+  betas: [0.9, 0.999]
+
+# Learning rate scheduler
+### 지금 아무데도 들어가고 있지 않음!!! ###
+scheduler:
+  name: poly  # SegFormer uses polynomial decay
+  max_iter: 160000
+  power: 1.0
+  min_lr: 0.0
+
+# ------------------------------- train & eval settings -----------------------------------------
+# Training configuration (Based on SegFormer paper)
+training:
+  batch_size: 4  # SegFormer paper uses 8 for Cityscapes 
+  epochs: 430  # Common practice for Cityscapes
+  # crop_size: [1024, 1024]  # SegFormer paper uses 1024x1024 for Cityscapes
+  # 이건 왜 training에 있지?
+  # train_crop_size: [512, 512]  # SegFormer paper uses 1024x1024 for Cityscapes
+
 # Evaluation
 evaluation:
-  metrics: [mIoU]
-  test_crop_size: [512, 1024]
+  batch_size: 8
+  metrics: [mIoU] # 이거는 string으로 써야 하지 않나? 아니면 이렇게 하면 함수같은 걸 불러오는 hydra 문법이 있나?
+  # test_crop_size: [512, 1024]
   eval_every: 10   # Evaluate every 10 epochs
 
+# ------------------------------ federated learning setting ---------------------------------------
 # Federated Learning configuration
 federated:
   num_clients: 3                    # Number of clients
   resolutions: [512, 512, 512]      # Resolution per client (square format)
   samples_per_client: 700           # Samples per client
-
-# Logging
-logging:
-  wandb:
-    project: segformer_fl
-    entity: null
-  save_every: 10  # Save checkpoint every 10 epochs 

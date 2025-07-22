@@ -96,7 +96,7 @@ def create_test_dataloader(config: Dict[str, Any]) -> DataLoader:
         crop_h = crop_w = crop_size
         
     dataset_config = edict({
-        'dataset_root': config['data_root'],
+        'dataset_root': config['data']['data_root'],
         'train_split': 'train',
         'valid_split': 'val',
         'mode': 'gtFine',
@@ -172,7 +172,7 @@ def main() -> None:
         
         # Override data root if provided
         if args.data_root:
-            config['data_root'] = args.data_root
+            config['data']['data_root'] = args.data_root
             print(f"📁 Using data root: {args.data_root}")
         
         # Override resolution if provided

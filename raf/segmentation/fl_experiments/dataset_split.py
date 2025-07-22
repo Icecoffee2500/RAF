@@ -15,14 +15,12 @@ from pathlib import Path
 from typing import Dict, List
 
 import numpy as np
-from torchvision.datasets import Cityscapes
-
+from ..dataset.cityscapes import CityscapesDataset as Cityscapes
 
 # Default constants (can be overridden)
 DEFAULT_NUM_CLIENTS = 3
 DEFAULT_TOTAL_SAMPLES = 2100  # Total samples to use (700 per client)
 DEFAULT_SAMPLES_PER_CLIENT = 700  # Samples per client
-_SEED = 0
 
 # Explicit aliases used throughout the file (kept for backward-compatibility)
 NUM_CLIENTS = DEFAULT_NUM_CLIENTS
@@ -30,7 +28,7 @@ SAMPLES_PER_CLIENT = DEFAULT_SAMPLES_PER_CLIENT
 NUM_TOTAL_SAMPLES = DEFAULT_TOTAL_SAMPLES
 
 
-def get_limited_dataset_indices(root: str | Path, num_samples: int = DEFAULT_TOTAL_SAMPLES) -> List[int]:
+def get_limited_dataset_indices(root: str | Path, num_samples: int = DEFAULT_TOTAL_SAMPLES, seed: int = 0) -> List[int]:
     """Get a limited subset of Cityscapes train indices ensuring class coverage.
     
     Args:
@@ -41,7 +39,7 @@ def get_limited_dataset_indices(root: str | Path, num_samples: int = DEFAULT_TOT
         List of indices for the limited dataset
     """
     root = Path(root)
-    rng = random.Random(_SEED)
+    rng = random.Random(seed)
 
     print("📂 Loading Cityscapes dataset...")
     ds = Cityscapes(str(root), split="train", mode="fine", target_type="semantic")
@@ -102,7 +100,7 @@ def get_limited_dataset_indices(root: str | Path, num_samples: int = DEFAULT_TOT
     return final_indices
 
 
-def split_cityscapes(root: str | Path) -> Dict[int, List[int]]:
+def split_cityscapes(root: str | Path, seed: int = 0) -> Dict[int, List[int]]:
     """Split limited Cityscapes dataset into 3 clients with 700 samples each.
     Each client is guaranteed to have all 19 classes.
     
@@ -115,7 +113,7 @@ def split_cityscapes(root: str | Path) -> Dict[int, List[int]]:
     print("🎯 Smart splitting: ensuring each client gets all 19 classes...")
     
     root = Path(root)
-    rng = random.Random(_SEED)
+    rng = random.Random(seed)
     ds = Cityscapes(str(root), split="train", mode="fine", target_type="semantic")
     
     # Step 1: Single scan to build class mapping efficiently
@@ -187,7 +185,7 @@ def split_cityscapes(root: str | Path) -> Dict[int, List[int]]:
     return client_indices
 
 
-def get_centralized_indices(root: str | Path) -> List[int]:
+def get_centralized_indices(root: str | Path, seed: int = 0) -> List[int]:
     """Get the same 2100 indices used for federated learning for centralized training.
     
     Args:
@@ -196,7 +194,7 @@ def get_centralized_indices(root: str | Path) -> List[int]:
     Returns:
         List of 2100 indices for centralized training
     """
-    return get_limited_dataset_indices(root, NUM_TOTAL_SAMPLES)
+    return get_limited_dataset_indices(root, NUM_TOTAL_SAMPLES, seed=seed)
 
 
 def _fix_class_coverage(client_indices: Dict[int, List[int]], 
