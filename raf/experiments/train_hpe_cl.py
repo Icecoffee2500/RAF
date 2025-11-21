@@ -14,16 +14,19 @@ sys.path.insert(0, str(project_root))
 import torch
 from typing import Any
 
-from hpe.utils.logging_utils import ShellColors as sc
+# from hpe.utils.logging_utils import ShellColors as sc
+from hpe.utils.logging import ShellColors as sc
 from configs.hpe.config import config
 from configs.hpe.config import get_model_name
-from hpe.utils.logging_utils import create_logger_sfl
+# from hpe.utils.logging_utils import create_logger_sfl
+from hpe.utils.logging import create_logger_sfl
 from hpe.utils.checkpoint_utils import save_checkpoint, load_checkpoint
 from hpe.utils.random_utils import init_random_seed, set_random_seed
 from hpe.utils.misc_utils import show_info, parse_args
-from hpe.utils.resolution_utils import setup_single_client_resolution, is_multi_resolution
+from hpe.utils.resolution_utils import setup_single_client_resolution, is_multi_resolution, setup_client_resolutions
 from federated.server import FedServer
-from hpe.train.client import FLClient
+# from hpe.train.client import FLClient
+from hpe.federated.client import FLClient
 from hpe.models.vit import ViT
 from hpe.models.topdown_heatmap_simple_head import TopdownHeatmapSimpleHead
 from hpe.models.vit_pose import ViTPose
@@ -40,7 +43,11 @@ def main(args):
         now = datetime.now()
         today = now.strftime("%m%d_%H:%M")
         
-        name = f"{args.gnc_res[0]}-kd_use-{args.kd_use}_{args.gnc_split_num*1000}_bs{args.gnc_train_bs}_alpha={args.kd_alpha}-loss_sacle-{args.loss_scale}"
+        # name = f"{args.gnc_res[0]}-kd_use-{args.kd_use}_{args.gnc_split_num*1000}_bs{args.gnc_train_bs}_alpha={args.kd_alpha}-loss_sacle-{args.loss_scale}"
+        name = f"cl_G{args.client_num}_{args.samples_per_client}_bs{args.train_bs}_alpha={args.kd_alpha}"
+        name += "_res"
+        for res in args.client_res:
+            name += f"_{res}"
         name += f"_{today}"
         wdb = wandb
         wdb.init(
@@ -53,11 +60,17 @@ def main(args):
     config.KD_ALPHA = args.kd_alpha
     
     # Setup resolution configuration using utility function
-    config.MODEL.IMAGE_SIZE, config.MODEL.HEATMAP_SIZE = setup_single_client_resolution(
-        args.gnc_res[0], args.kd_use
-    )
-    print(f"image size: {config.MODEL.IMAGE_SIZE}")
-    print(f"heatmap size: {config.MODEL.HEATMAP_SIZE}")
+    # config.MODEL.IMAGE_SIZE, config.MODEL.HEATMAP_SIZE = setup_single_client_resolution(
+    #     args.gnc_res[0], args.kd_use
+    # )
+    # print(f"image size: {config.MODEL.IMAGE_SIZE}")
+    # print(f"heatmap size: {config.MODEL.HEATMAP_SIZE}")
+
+    if args.client_res:
+        config.MODEL.IMAGE_SIZE, config.MODEL.HEATMAP_SIZE = setup_client_resolutions(args.client_res, args.kd_use)
+        config.MODEL.IMAGE_SIZE, config.MODEL.HEATMAP_SIZE = config.MODEL.IMAGE_SIZE[0], config.MODEL.HEATMAP_SIZE[0]
+        print(f"image size: {config.MODEL.IMAGE_SIZE}")
+        print(f"heatmap size: {config.MODEL.HEATMAP_SIZE}")
     
     
     show_info(0, args, config)
@@ -90,7 +103,8 @@ def main(args):
     extra: Any = extra
 
     res_arg = ""
-    for res in args.gnc_res:
+    # for res in args.gnc_res:
+    for res in args.client_res:
         res_arg += f"{res}_"
     res_arg += f"{args.kd_alpha}"
     res_arg += "_all_kd" if args.kd_use else "_no_kd"
@@ -159,9 +173,10 @@ def main(args):
         logger=logger,
         im_size=config.MODEL.IMAGE_SIZE,
         hm_size=config.MODEL.HEATMAP_SIZE,
-        batch_size=args.gnc_train_bs,
+        # batch_size=args.gnc_train_bs,
+        batch_size=args.train_bs,
         is_proxy=False,
-        samples_per_split=args.gnc_split_num,
+        # samples_per_split=args.gnc_split_num,
     )
     
     perf_buf = [0.0]
@@ -174,10 +189,13 @@ def main(args):
 
         # -------- Train --------------------------------------------------------
         if is_multi_resolution(config.MODEL.IMAGE_SIZE):
-            print(f"\n>>> [{args.gnc_res[0]}] Client Multi-res (KD) Centralized Training")
+        # if is_multi_resolution(config.MODEL.IMAGE_SIZE[0]):
+            # print(f"\n>>> [{args.gnc_res[0]}] Client Multi-res (KD) Centralized Training")
+            print(f"\n>>> [{args.client_res[0]}] Client Multi-res (KD) Centralized Training")
             cl_client.train_multi_resolution(epoch)
         else:
-            print(f"\n>>> [{args.gnc_res[0]}] Client Single Centralized Training")
+            # print(f"\n>>> [{args.gnc_res[0]}] Client Single Centralized Training")
+            print(f"\n>>> [{args.client_res[0]}] Client Single Centralized Training")
             cl_client.train_single_resolution(epoch)
         
         epoch_e_time = datetime.now() - init_time
@@ -204,6 +222,8 @@ def main(args):
             # evaluate performance of each clients
             perf_indicator = cl_client.evaluate(
                 final_output_dir=final_output_dir,
+                backbone=backbone,
+                keypoint_head=deconv_head,
                 wdb=wdb,
             )
             
