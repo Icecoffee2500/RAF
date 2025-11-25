@@ -6,7 +6,8 @@ import importlib
 
 # 현재 파일의 위치에서 프로젝트 루트까지의 경로 설정
 current_file = Path(__file__).resolve()
-project_root = current_file.parent.parent  # experiments -> raf -> project_root
+# project_root = current_file.parent.parent  # experiments -> raf -> project_root
+project_root = current_file.parent.parent.parent  # experiments -> raf -> project_root
 
 # raf를 top-level package로 사용하기 위해 project_root만 추가
 sys.path.insert(0, str(project_root))
