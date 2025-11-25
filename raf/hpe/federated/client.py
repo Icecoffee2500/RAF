@@ -289,10 +289,10 @@ class FLClient:
                 # )
                 
                 alpha = self.config.KD_ALPHA
-                # loss = loss_gt * alpha + loss_kd * (1 - alpha)
+                loss = loss_gt * alpha + loss_kd * (1 - alpha)
                 # print(f"[{img.shape[2]}x{img.shape[3]}] KD Loss Used")
                 # loss = loss_kd * (1 - alpha)
-                loss = loss_gt + loss_kd
+                # loss = loss_gt + loss_kd
             else:
                 loss = loss_gt
                 # print(f"[{img.shape[2]}x{img.shape[3]}] GT Loss Used")

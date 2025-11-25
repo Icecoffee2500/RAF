@@ -176,6 +176,7 @@ def main(args):
         # batch_size=args.gnc_train_bs,
         batch_size=args.train_bs,
         is_proxy=False,
+        samples_per_split=args.samples_per_client,
         # samples_per_split=args.gnc_split_num,
     )
     
