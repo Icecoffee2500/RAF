@@ -20,11 +20,14 @@ from hpe.models.topdown_heatmap_simple_head import TopdownHeatmapSimpleHead
 
 from configs.hpe.config import config
 from configs.hpe.config import get_model_name
-from hpe.utils.logging_utils import ShellColors as sc, create_logger_sfl
+# from hpe.utils.logging_utils import ShellColors as sc, create_logger_sfl
+from hpe.utils.logging import create_logger_sfl
+from hpe.utils.logging import ShellColors as sc
 from hpe.utils.checkpoint_utils import save_checkpoint, load_checkpoint
 from hpe.utils.random_utils import init_random_seed, set_random_seed
 from hpe.utils.misc_utils import show_info, parse_args
-from hpe.train.client import FLClient
+# from hpe.train.client import FLClient
+from hpe.federated.client import FLClient
 
 # Type hint for config to allow dynamic attribute access
 config: Any = config
