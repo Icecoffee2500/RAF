@@ -143,7 +143,8 @@ def main(args):
     global_fl_model.to(device)
     
     client = FLClient(
-        idx=0, # dataset의 index
+        # idx=0, # dataset의 index
+        client_id=0, # dataset의 index
         config=config,
         device=device,
         init_model=global_fl_model,
@@ -152,7 +153,7 @@ def main(args):
         logger=logger,
         im_size=config.MODEL.IMAGE_SIZE,
         hm_size=config.MODEL.HEATMAP_SIZE,
-        split_size=1,
+        # split_size=1,
         batch_size=32,
         is_proxy=False,
     )
