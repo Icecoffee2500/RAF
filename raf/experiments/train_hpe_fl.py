@@ -4,6 +4,8 @@ import numpy as np
 from pathlib import Path
 import importlib
 
+from raf.federated.server_scaffold import FedServerSCAFFOLD
+
 # 현재 파일의 위치에서 프로젝트 루트까지의 경로 설정
 current_file = Path(__file__).resolve()
 project_root = current_file.parent.parent  # experiments -> raf -> project_root
@@ -206,7 +208,10 @@ def main(args):
         )
     
     # Fed Server for aggregating model weights
-    fed_server = FedServer()
+    if args.fed == "scaffold":
+        fed_server = FedServerSCAFFOLD()
+    else:
+        fed_server = FedServer()
     
     avg_perf_buf = [0.0]
     
