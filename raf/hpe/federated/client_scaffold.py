@@ -172,15 +172,6 @@ class FLClientScaffold(FLClient):
         self.losses.reset()
         self.acc.reset()
         
-        # For FEDPROX
-        if self.config.FED.FEDPROX:
-            print(f"FEDPROX GOOOOOOOOOOO!!!!!!!!!!!!!")
-            global_dict = self.model.state_dict()
-            mu = 1.0
-        else:
-            global_dict = None
-            mu = 0.0
-        
         # SCAFFOLD 적용 ------------------------------
         if self.c_local == []:
             self.c_diff = c_global
@@ -193,14 +184,13 @@ class FLClientScaffold(FLClient):
         
         epoch_start_time = datetime.now()
         batch_num = len(self.train_loader)
+
+        update_count = 0
         
         for batch_idx, (imgs, heatmaps, heatmap_weights, meta) in enumerate(self.train_loader):
+            update_count += 1
             etime = gpu_timer(
-                lambda: self._train_step_multi(
-                    imgs, heatmaps, heatmap_weights,
-                    # global_dict=global_dict,
-                    # mu=mu,
-                )
+                lambda: self._train_step_multi(imgs, heatmaps, heatmap_weights)
             )
             batch_time.update(etime)
             
@@ -214,6 +204,39 @@ class FLClientScaffold(FLClient):
                 train_batch_size=batch_num,
                 total_batch_time=batch_time,
             )
+        
+        # SCAFFOLD 적용 (y_delta, c_plus, c_delta 계산) ------------------------------
+        with torch.no_grad():
+            trainable_parameters = filter(
+                lambda p: p.requires_grad, global_params.values() # global_params 중에서 requires_grad가 true인 파라미터만 필터링.
+            )
+
+            if self.c_local == []: # (처음에만) c_local을 초기화.
+                # self.c_local = [torch.zeros_like(param, device=self.device) for param in self.model.parameters()]
+                self.c_local = [torch.zeros_like(param, device=self.device) for param in self.model.state_dict().values()]
+
+            y_delta = []
+            c_plus = []
+            c_delta = []
+
+            # compute y_delta (difference of model before and after training)
+            for param_l, param_g in zip(self.model.state_dict().values(), global_params.values()):
+                y_delta.append(param_l - param_g)
+            
+            # compute c_plus # Option II version
+            coef = 1 / (update_count * self.local_lr)
+            for c_l, c_g, diff in zip(self.c_local, c_global, y_delta):
+                c_plus.append(c_l - c_g - coef * diff)
+
+            # compute c_delta
+            for c_p, c_l in zip(c_plus, self.c_local):
+                c_delta.append(c_p - c_l)
+
+            self.c_local = c_plus
+        
+        res = (y_delta, self.dataset_length, c_delta)
+
+        return res
     
     def _train_step_multi(self, imgs, heatmaps, heatmap_weights, **proximal):
         # forward propagation
@@ -221,10 +244,6 @@ class FLClientScaffold(FLClient):
         total_avg_acc = 0.0
         total_cnt = 0
         total_loss = torch.tensor(0.0, device=self.device, requires_grad=True)
-        
-        # FedProx
-        global_dict = proximal.get("global_dict", None)
-        mu = proximal.get("mu", None)
         
         imgs = [img.to(self.device) for img in imgs]
         heatmaps = [heatmap.to(self.device) for heatmap in heatmaps]
@@ -265,8 +284,6 @@ class FLClientScaffold(FLClient):
             else:
                 loss = loss_gt
             
-            # if idx == 0:
-            #     teacher_output = output
             teacher_output = output
             
             # calculate accuracy
@@ -290,31 +307,15 @@ class FLClientScaffold(FLClient):
         # backward propagation
         self.optimizer.zero_grad()
         total_avg_loss.backward()
-        
-        # calculate gradient norm
-        grad_norm = self.clip_grads(self.model.parameters())
-        
-        # FedProx일 경우.
-        # local 모델의 named_parameters와 순회하면서
-        if global_dict is not None and mu is not None:
-            for name, local_param in self.model.named_parameters():
-                if name not in global_dict:
-                    # 이 이름은 global에 없으므로 건너뛰거나 warning
-                    print(f"[no global param] {name}")
-                    continue
 
-                global_param = global_dict[name]
-                # 크기 체크
-                if local_param.shape != global_param.shape:
-                    print(f"[mismatch] {name}: local {tuple(local_param.shape)} vs global {tuple(global_param.shape)}")
+        # SCAFFOLD 적용 (Local update) ----------------
+        with torch.no_grad():
+            # for param, c_d in zip(self.model.parameters(), self.c_diff):
+            for param, c_d in zip(self.model.state_dict().values(), self.c_diff):
+                if not param.requires_grad:
                     continue
-                
-                # FedProx 적용
-                if local_param.grad is None:
-                    local_param.grad = torch.zeros_like(local_param)
-                with torch.no_grad():
-                    delta = mu * (global_param.detach() - local_param.detach())
-                    local_param.grad.add_(delta)
+                param.grad.add_(c_d.detach())
+        # -------------------------------------------
         
         # step optimizer
         self.optimizer.step()
