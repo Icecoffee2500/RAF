@@ -23,6 +23,17 @@ def save_checkpoint(states, output_dir, filename="checkpoint.pth.tar"):
     elif "state_dict" in states:
         torch.save(states["state_dict"], os.path.join(output_dir, "model_best.pth"))
 
+def save_checkpoint_fedbn(states, output_dir, filename="checkpoint.pth.tar"):
+    torch.save(states, os.path.join(output_dir, filename)) # resume를 위해서 모든 설정 저장.
+    
+    # best model state dict 저장
+    if "high_state_dict" in states:
+        torch.save(states["high_state_dict"], os.path.join(output_dir, "high_model_best.pth"))
+    if "mid_state_dict" in states:
+        torch.save(states["mid_state_dict"], os.path.join(output_dir, "mid_model_best.pth"))
+    if "low_state_dict" in states:
+        torch.save(states["low_state_dict"], os.path.join(output_dir, "low_model_best.pth"))
+
 
 def _load_checkpoint(filename, map_location=None):
     if not osp.isfile(filename):

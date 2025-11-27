@@ -4,8 +4,6 @@ import numpy as np
 from pathlib import Path
 import importlib
 
-from raf.federated.server_scaffold import FedServerSCAFFOLD
-
 # 현재 파일의 위치에서 프로젝트 루트까지의 경로 설정
 current_file = Path(__file__).resolve()
 project_root = current_file.parent.parent  # experiments -> raf -> project_root
@@ -23,7 +21,7 @@ from configs.hpe.config import get_model_name
 # Type hint for config to allow dynamic attribute access
 config: Any = config
 from hpe.utils.logging import create_logger_sfl
-from hpe.utils.checkpoint_utils import save_checkpoint, load_checkpoint
+from hpe.utils.checkpoint_utils import save_checkpoint, load_checkpoint, save_checkpoint_fedbn
 from hpe.utils.random_utils import init_random_seed, set_random_seed
 from hpe.utils.misc_utils import show_info, parse_args
 from hpe.utils.resolution_utils import setup_client_resolutions, is_multi_resolution
@@ -206,7 +204,7 @@ def main(args):
         )
     
     # Fed Server for aggregating model weights
-    fed_server = FedServer()
+    fed_server = FedServer(args.fed)
     
     avg_perf_buf = [0.0]
     
@@ -236,8 +234,15 @@ def main(args):
         
         # Broadcast weight to each clients
         logger.info(">>> load Fed-Averaged weight to the each client model ...")
-        for client in fl_clients:
-            client.model.load_state_dict(w_glob_client)
+        if args.fed == "fedbn":
+            print("FedBN Broadcasting ...")
+            for client in fl_clients:
+                for key in w_glob_client.keys():
+                    if 'bn' not in key:
+                        client.model.state_dict()[key].data.copy_(w_glob_client[key])
+        else:
+            for client in fl_clients:
+                client.model.load_state_dict(w_glob_client)
         
         # load weight to global fl model
         global_fl_model.load_state_dict(w_glob_client)
@@ -271,16 +276,16 @@ def main(args):
                 print(f"{sc.COLOR_LIGHT_PURPLE}------------------------------------------------------------{sc.ENDC}")
                 
                 # evaluate performance of each clients (자체 모델 사용으로 개선)
-                # perf_indicator = client.evaluate(
-                #     final_output_dir=final_output_dir,
-                #     wdb=wdb,
-                # )
                 perf_indicator = client.evaluate(
                     final_output_dir=final_output_dir,
-                    backbone=backbone,
-                    keypoint_head=deconv_head,
                     wdb=wdb,
                 )
+                # perf_indicator = client.evaluate(
+                #     final_output_dir=final_output_dir,
+                #     backbone=backbone,
+                #     keypoint_head=deconv_head,
+                #     wdb=wdb,
+                # )
                 curr_avg_perf = curr_avg_perf + perf_indicator / len(fl_clients) # this is average performance
             
             # avg perf가 가장 높은 성능이 나왔을 때만 model save
@@ -291,17 +296,32 @@ def main(args):
                 
                 # logging
                 logger.info(f"=> saving best client checkpoint to {final_output_dir}")
-                save_checkpoint(
-                    {
-                        "epoch": epoch + 1,
-                        "model_client": get_model_name(config),
-                        "state_dict": global_fl_model.state_dict(),
-                        "perf": curr_avg_perf,
-                        "optimizer": fl_clients[0].optimizer.state_dict(),
-                        "HM_LOSS": config.LOSS.HM_LOSS,
-                    },
-                    final_output_dir,
-                )
+                if args.fed == 'fedbn':
+                    save_checkpoint_fedbn(
+                        {
+                            "epoch": epoch + 1,
+                            "model_client": get_model_name(config),
+                            "high_state_dict": fl_clients[0].model.state_dict(),
+                            "mid_state_dict": fl_clients[1].model.state_dict(),
+                            "low_state_dict": fl_clients[2].model.state_dict(),
+                            "perf": curr_avg_perf,
+                            "optimizer": fl_clients[0].optimizer.state_dict(),
+                            "HM_LOSS": config.LOSS.HM_LOSS,
+                        },
+                        final_output_dir,
+                    )
+                else:
+                    save_checkpoint(
+                        {
+                            "epoch": epoch + 1,
+                            "model_client": get_model_name(config),
+                            "state_dict": global_fl_model.state_dict(),
+                            "perf": curr_avg_perf,
+                            "optimizer": fl_clients[0].optimizer.state_dict(),
+                            "HM_LOSS": config.LOSS.HM_LOSS,
+                        },
+                        final_output_dir,
+                    )
             
     # saving model state file    
     final_global_model_state_file = os.path.join(final_output_dir, "final_state_global.pt")

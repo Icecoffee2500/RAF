@@ -358,8 +358,8 @@ class FLClient:
         self.acc.update(total_avg_acc, total_cnt)
         self.losses.update(total_avg_loss.item(), imgs[0].size(0))
     
-    # def evaluate(self, final_output_dir, wdb):
-    def evaluate(self, final_output_dir, backbone, keypoint_head, wdb):
+    def evaluate(self, final_output_dir, wdb):
+    # def evaluate(self, final_output_dir, backbone, keypoint_head, wdb):
         batch_time = AverageMeter()
         self.losses.reset()
         self.acc.reset()
@@ -387,15 +387,15 @@ class FLClient:
                 # Flip Test
                 if self.config.TEST.FLIP_TEST:
                     img_flipped = img.flip(3).cuda()
-                    # features_flipped = self.model.backbone(img_flipped)
-                    features_flipped = backbone(img_flipped)
+                    features_flipped = self.model.backbone(img_flipped)
+                    # features_flipped = backbone(img_flipped)
                     
-                    # output_flipped_heatmap = self.model.keypoint_head.inference_model(
-                    #     features_flipped, meta["flip_pairs"]
-                    # )
-                    output_flipped_heatmap = keypoint_head.inference_model(
+                    output_flipped_heatmap = self.model.keypoint_head.inference_model(
                         features_flipped, meta["flip_pairs"]
                     )
+                    # output_flipped_heatmap = keypoint_head.inference_model(
+                    #     features_flipped, meta["flip_pairs"]
+                    # )
                     output_heatmap = (
                         output + torch.from_numpy(output_flipped_heatmap.copy()).to(self.device)
                     ) * 0.5
