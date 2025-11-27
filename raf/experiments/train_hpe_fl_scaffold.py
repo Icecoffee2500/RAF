@@ -4,8 +4,6 @@ import numpy as np
 from pathlib import Path
 import importlib
 
-from raf.federated.server_scaffold import FedServerSCAFFOLD
-
 # 현재 파일의 위치에서 프로젝트 루트까지의 경로 설정
 current_file = Path(__file__).resolve()
 project_root = current_file.parent.parent  # experiments -> raf -> project_root
@@ -20,6 +18,9 @@ from hpe.utils.logging import ShellColors as sc
 from configs.hpe.config import config
 from configs.hpe.config import get_model_name
 
+from federated.server_scaffold import FedServerSCAFFOLD
+from hpe.federated.client_scaffold import FLClientScaffold
+
 # Type hint for config to allow dynamic attribute access
 config: Any = config
 from hpe.utils.logging import create_logger_sfl
@@ -32,6 +33,27 @@ from hpe.federated.client import FLClient
 from hpe.models import ViT
 from hpe.models import TopdownHeatmapSimpleHead
 from hpe.models import ViTPose
+
+from collections import OrderedDict
+from typing import Union
+
+def clone_parameters(
+    src: Union[OrderedDict[str, torch.Tensor], torch.nn.Module]
+) -> OrderedDict[str, torch.Tensor]:
+    if isinstance(src, OrderedDict):
+        return OrderedDict(
+            {
+                name: param.clone().detach().requires_grad_(param.requires_grad)
+                for name, param in src.items()
+            }
+        )
+    if isinstance(src, torch.nn.Module):
+        return OrderedDict(
+            {
+                name: param.clone().detach().requires_grad_(param.requires_grad)
+                for name, param in src.state_dict(keep_vars=True).items()
+            }
+        )
 
 def main(args):
     wdb = None
@@ -189,7 +211,7 @@ def main(args):
     fl_clients = []
     for idx in range(args.client_num):
         fl_clients.append(
-            FLClient(
+            FLClientScaffold(
                 client_id=idx, # dataset의 index
                 config=config,
                 device=device,
@@ -206,7 +228,7 @@ def main(args):
         )
     
     # Fed Server for aggregating model weights
-    fed_server = FedServer()
+    fed_server = FedServerSCAFFOLD(global_params_dict=global_fl_model.state_dict(keep_vars=True))
     
     avg_perf_buf = [0.0]
     
@@ -219,31 +241,38 @@ def main(args):
 
         # Train ----------------------------------------------------------------
         client_weights = []
+        res_cache = []
         for idx, client in enumerate(fl_clients):
             # print(f"\n>>> General Client [{idx}] Training")
             if is_multi_resolution(config.MODEL.IMAGE_SIZE[idx]):
                 print(f"\n>>> General Client [{idx}]-[{args.client_res[idx]}] Multi-res (KD) Federated Learning Training")
-                client.train_multi_resolution(epoch)
+                print("SCAFFOLD Algorithm Used")
+                client_local_params = clone_parameters(fed_server.global_params_dict)
+                res = client.train_multi_resolution(epoch, global_params=client_local_params, c_global=fed_server.c_global)
             else:
                 print(f"\n>>> General Client [{idx}]-[{args.client_res[idx]}] Single-res (No-KD) Federated Learning")
-                client.train_single_resolution(epoch)
+                print("SCAFFOLD Algorithm Used")
+                client_local_params = clone_parameters(fed_server.global_params_dict)
+                res = client.train_single_resolution(epoch, global_params=client_local_params, c_global=fed_server.c_global)
             
-            client_weights.append(client.model.state_dict())
+            res_cache.append(res)
         
         # aggregate weights
         logger.info(">>> load Fed-Averaged weight to the client model ...")
-        w_glob_client = fed_server.aggregate(logger, client_weights)
+        # w_glob_client = fed_server.aggregate(logger, client_weights)
+        fed_server.aggregate(logger, device, res_cache)
         
         # Broadcast weight to each clients
         logger.info(">>> load Fed-Averaged weight to the each client model ...")
         for client in fl_clients:
-            client.model.load_state_dict(w_glob_client)
+            client.model.load_state_dict(fed_server.global_params_dict)
         
         # load weight to global fl model
-        global_fl_model.load_state_dict(w_glob_client)
+        # global_fl_model.load_state_dict(w_glob_client)
+        global_fl_model.load_state_dict(fed_server.global_params_dict) # 아마 고쳐야 할 듯.
         
-        # # Set global model to eval mode for consistent evaluation
-        # global_fl_model.eval()
+        # Set global model to eval mode for consistent evaluation
+        global_fl_model.eval()
         
         epoch_e_time = datetime.now() - init_time
         logger.info(f"This epoch takes {epoch_e_time}\n")

@@ -1,37 +1,56 @@
 import torch
 from functools import partial
+from collections import OrderedDict
+from typing import Union
 
 class FedServerSCAFFOLD:
-    def __init__(self):
-        self.aggregation = None
-        self.global_params_dict = None
-        self.c_global = None
+    def __init__(self, global_params_dict):
+        self.global_params_dict = global_params_dict
+        self.c_global = global_params_dict.values()
     
-    def aggregate(self, logger, weights, num_samples=None, loss_buffer=None):
-        if self.aggregation_method == "fed_avg":
-            self.aggregation = partial(self.fed_avg, num_samples=num_samples)
-        elif self.aggregation_method == "fed_w_avg_softmax":
-            self.aggregation = partial(self.fed_w_avg_softmax, loss_buffer=loss_buffer)
-        elif self.aggregation_method == "fed_w_avg_softmax_scaled":
-            self.aggregation = partial(self.fed_w_avg_softmax_scaled, loss_buffer=loss_buffer)
-        elif self.aggregation_method == "fed_w_avg_sim":
-            self.aggregation = partial(self.fed_w_avg_sim, loss_buffer=loss_buffer)
-        assert self.aggregation is not None, "You Should Define Aggregation Method First!"
-        
-        w_glob_client = self.aggregation(weights) # 각 client에서 update된 weight를 받아서 FedAvg로 합쳐줌.
-        logger.info("\n>>> Fed Server: Weights are aggregated.\n")
-        
-        return w_glob_client
+    @torch.no_grad()
+    def aggregate(self, logger, device, res_cache):
+        """
+        res_cache: list of (y_delta_list, weights, c_delta_list)
+        """
+        y_delta_cache = list(zip(*res_cache))[0] # tuple of params_list
+        weights_cache = list(zip(*res_cache))[1] # tuple of number_of_samples
+        c_delta_cache = list(zip(*res_cache))[2] # tuple of c_delta
 
-    # Federated averaging: FedAvg
-    def fed_avg(self, weights: list, num_samples: list = None):
-        if num_samples is None:
-            num_samples = [1 for _ in range(len(weights))]
-        # print(f"num_samples = {num_samples}")
-        w_avg = {k: torch.zeros_like(v) for k, v in weights[0].items()}  # OrderedDict에서 각 텐서를 사용하여 초기화
+        weight_sum = sum(weights_cache) # total number of samples
+        weights = torch.tensor(weights_cache, device=device) / weight_sum # 각 client에 곱해줄 가중치 (ratio of number of samples)
+
+        # trainable_parameter = filter(
+        #     lambda p: p.requires_grad, self.global_params_dict.values()
+        # )
+
+        # # update global model
+        # avg_weight = torch.tensor(
+        #     [
+        #         1 / len(self.clients)
+        #         for _ in range(len(self.clients))
+        #     ],
+        #     device=self.device,
+        # )
         
-        for k in w_avg.keys():
-            for i in range(len(weights)):
-                w_avg[k] += weights[i][k].detach() * num_samples[i]
-            w_avg[k] = torch.div(w_avg[k], sum(num_samples))
-        return w_avg
+        aggregated_params = []
+        for global_param, y_del in zip(self.global_params_dict.values(), zip(*y_delta_cache)): # zip(*updated_params_cache)은 각 개별 parameter별로 client들의 parameter를 묶는다.
+            # 즉, 여기서 params는 모든 client들의 같은 파라미터들이다.
+            aggregated_params.append(
+                global_param + torch.sum(weights * torch.stack(y_del, dim=-1), dim=-1) # 결과의 shape은 원래 parameter의 shape과 같다.
+            )
+        
+        self.global_params_dict = OrderedDict(
+            zip(self.global_params_dict.keys(), aggregated_params)
+        )
+
+        # update global control
+        for c_g, c_del in zip(self.c_global, zip(*c_delta_cache)):
+            # c_del = torch.sum(avg_weight * torch.stack(c_del, dim=-1), dim=-1)
+            c_del = torch.sum(weights * torch.stack(c_del, dim=-1), dim=-1)
+            
+            # c_delta = self.cfg.participation_rate * c_del
+            c_delta = c_del / 3
+            c_g.add_(c_delta.to(c_g.dtype))   # 또는 .type_as(global_param)
+
+        logger.info("\n>>> Fed Server: Weights are aggregated.\n")

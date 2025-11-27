@@ -99,6 +99,8 @@ class FLClient:
             train_dataset, self.valid_dataset,
             list([config.TRAIN.BATCH_SIZE, config.TEST.BATCH_SIZE]), config.WORKERS)
         
+        self.dataset_length = len(train_dataset)
+        
     
     def train_single_resolution(self, epoch):
         batch_time = AverageMeter()
