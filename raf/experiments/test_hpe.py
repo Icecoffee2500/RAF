@@ -180,8 +180,8 @@ def main(args):
     
     # evaluate performance of each clients
     perf_indicator = client.evaluate(
-        backbone=global_fl_model.backbone,
-        keypoint_head=global_fl_model.keypoint_head,
+        # backbone=global_fl_model.backbone,
+        # keypoint_head=global_fl_model.keypoint_head,
         final_output_dir=final_output_dir,
         wdb=wdb,
     )
