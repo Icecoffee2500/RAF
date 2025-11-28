@@ -44,11 +44,13 @@ class FedServer:
         w_avg = {k: torch.zeros_like(v) for k, v in weights[0].items()}  # OrderedDict에서 각 텐서를 사용하여 초기화
 
         for key in weights[0].keys():
-            if 'bn' not in key:
+            if 'running' not in key:
                 # temp = torch.zeros_like(weights[0][key], dtype=torch.float32)
                 for i in range(len(weights)):
                     w_avg[key] +=  weights[i][key].detach() * num_samples[i]
                 w_avg[key] = torch.div(w_avg[key], sum(num_samples))
+            # else:
+            #     print(f"ignore parameter: {key}")
         
         return w_avg
 

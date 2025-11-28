@@ -183,6 +183,16 @@ def main(args):
     
     # global fl model -> gpu
     global_fl_model.to(device)
+
+    # keys = sorted(global_fl_model.state_dict().keys())
+    # prev = []
+    # for key in keys:
+    #     parts = key.split('.')
+    #     for i, p in enumerate(parts):
+    #         if i >= len(prev) or prev[i] != p:
+    #             print("  " * i + f"- {p}")
+    #     prev = parts
+    # return
     
     fl_clients = []
     for idx in range(args.client_num):
@@ -238,8 +248,10 @@ def main(args):
             print("FedBN Broadcasting ...")
             for client in fl_clients:
                 for key in w_glob_client.keys():
-                    if 'bn' not in key:
+                    if 'running' not in key:
                         client.model.state_dict()[key].data.copy_(w_glob_client[key])
+                    # else:
+                    #     print(f"ignore parameter: {key}")
         else:
             for client in fl_clients:
                 client.model.load_state_dict(w_glob_client)
