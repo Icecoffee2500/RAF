@@ -117,12 +117,25 @@ class FLClientScaffold(FLClient):
                 c_delta.append(c_p - c_l)
 
             self.c_local = c_plus
+
+        # # y_delta가 tensor라면
+        # print("y_delta[0] shape:", y_delta[0].size())
+        # print("y_delta[0] dtype:", y_delta[0].dtype)
+        # print("y_delta[0] elements:", y_delta[0].numel())
+
+        # # c_delta가 tensor라면
+        # print("c_delta[0] shape:", c_delta[0].size())
+        # print("c_delta[0] dtype:", c_delta[0].dtype)
+        # print("c_delta[0] elements:", c_delta[0].numel())
         
         res = (y_delta, self.dataset_length, c_delta)
 
         return res
     
     def _train_step_single(self, img, heatmap, heatmap_weight, **proximal):
+
+        # torch.cuda.reset_peak_memory_stats(self.device)
+        # memory_start = time.perf_counter()
         # forward propagation
         img, heatmap, heatmap_weight = img.to(self.device), heatmap.to(self.device), heatmap_weight.to(self.device)
         output = self.model(img)
@@ -154,6 +167,19 @@ class FLClientScaffold(FLClient):
         
         # step optimizer
         self.optimizer.step()
+
+        # torch.cuda.synchronize(self.device)
+        # end = time.perf_counter()
+
+        # peak_alloc = torch.cuda.max_memory_allocated(self.device)
+        # current_alloc = torch.cuda.memory_allocated(self.device)
+        # reserved = torch.cuda.memory_reserved(self.device)
+
+        # print(f"step time: {end-memory_start:.3f}s")
+        # print(f"GPU peak allocated: {peak_alloc/1024**2:.2f} MB")
+        # print(f"GPU currently allocated: {current_alloc/1024**2:.2f} MB")
+        # print(f"GPU reserved (cached): {reserved/1024**2:.2f} MB")
+        # print(torch.cuda.memory_summary(device=self.device, abbreviated=True))
         
         # calculate accuracy
         _, avg_acc, cnt, pred = accuracy(

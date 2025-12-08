@@ -7,7 +7,7 @@ class FedServer:
         self.aggregation = None
     
     def aggregate(self, logger, weights, num_samples=None, loss_buffer=None):
-        if self.aggregation_method == "fedavg":
+        if self.aggregation_method == "fedavg" or self.aggregation_method == "fedprox":
             self.aggregation = partial(self.fed_avg, num_samples=num_samples)
         elif self.aggregation_method == "fed_w_avg_softmax":
             self.aggregation = partial(self.fed_w_avg_softmax, loss_buffer=loss_buffer)
