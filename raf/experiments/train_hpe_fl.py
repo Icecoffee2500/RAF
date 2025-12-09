@@ -13,6 +13,7 @@ sys.path.insert(0, str(project_root))
 
 import torch
 from typing import Any
+from copy import deepcopy
 
 from hpe.utils.logging import ShellColors as sc
 from configs.hpe.config import config
@@ -27,9 +28,41 @@ from hpe.utils.misc_utils import show_info, parse_args
 from hpe.utils.resolution_utils import setup_client_resolutions, is_multi_resolution
 from federated.server import FedServer
 from hpe.federated.client import FLClient
+from hpe.federated.client_feddyn import FedDynClient
 from hpe.models import ViT
 from hpe.models import TopdownHeatmapSimpleHead
 from hpe.models import ViTPose
+
+# --- Helper functions
+
+def set_model_from_params_to_dict(model, params, device):
+    dict_param = deepcopy(dict(model.named_parameters()))
+    idx = 0
+    for name, param in model.named_parameters():
+        weights = param.data
+        length = len(weights.reshape(-1))
+        dict_param[name].data.copy_(torch.tensor(params[idx:idx+length].reshape(weights.shape)).to(device))
+        idx += length
+    
+    return dict_param
+
+
+def get_model_params(model_list, n_par=None):
+    
+    if n_par==None:
+        exp_mdl = model_list[0]
+        n_par = 0
+        for name, param in exp_mdl.named_parameters():
+            n_par += len(param.data.reshape(-1))
+    
+    param_mat = np.zeros((len(model_list), n_par)).astype('float32')
+    for i, model in enumerate(model_list):
+        idx = 0
+        for name, param in model.named_parameters():
+            temp = param.data.cpu().numpy().reshape(-1)
+            param_mat[i, idx:idx + len(temp)] = temp
+            idx += len(temp)
+    return np.copy(param_mat)
 
 def main(args):
     wdb = None
@@ -195,23 +228,47 @@ def main(args):
     # return
     
     fl_clients = []
-    for idx in range(args.client_num):
-        fl_clients.append(
-            FLClient(
-                client_id=idx, # dataset의 index
-                config=config,
-                device=device,
-                init_model=global_fl_model,  # 이전과 동일하게 init_model 전달
-                extra=extra,
-                wdb=wdb,
-                logger=logger,
-                im_size=config.MODEL.IMAGE_SIZE[idx],
-                hm_size=config.MODEL.HEATMAP_SIZE[idx],
-                batch_size=args.train_bs,
-                is_proxy=False,
-                samples_per_split=args.samples_per_client,
+    if args.fed == "feddyn":
+        for idx in range(args.client_num):
+            fl_clients.append(
+                FedDynClient(
+                    client_id=idx, # dataset의 index
+                    config=config,
+                    device=device,
+                    init_model=global_fl_model,  # 이전과 동일하게 init_model 전달
+                    extra=extra,
+                    wdb=wdb,
+                    logger=logger,
+                    im_size=config.MODEL.IMAGE_SIZE[idx],
+                    hm_size=config.MODEL.HEATMAP_SIZE[idx],
+                    batch_size=args.train_bs,
+                    is_proxy=False,
+                    samples_per_split=args.samples_per_client,
+                )
             )
-        )
+        n_par = len(get_model_params([global_fl_model])[0]) # model의 params 개수
+        local_gradient_history_np = np.zeros((args.client_num, n_par)).astype('float32') # h-state initialization
+
+        init_param_np = get_model_params([global_fl_model], n_par)[0]
+        client_param_np  = np.ones(args.client_num).astype('float32').reshape(-1, 1) * init_param_np.reshape(1, -1) # n_clnt X n_par
+    else:
+        for idx in range(args.client_num):
+            fl_clients.append(
+                FLClient(
+                    client_id=idx, # dataset의 index
+                    config=config,
+                    device=device,
+                    init_model=global_fl_model,  # 이전과 동일하게 init_model 전달
+                    extra=extra,
+                    wdb=wdb,
+                    logger=logger,
+                    im_size=config.MODEL.IMAGE_SIZE[idx],
+                    hm_size=config.MODEL.HEATMAP_SIZE[idx],
+                    batch_size=args.train_bs,
+                    is_proxy=False,
+                    samples_per_split=args.samples_per_client,
+                )
+            )
     
     # Fed Server for aggregating model weights
     fed_server = FedServer(args.fed)
@@ -227,6 +284,8 @@ def main(args):
 
         # Train ----------------------------------------------------------------
         client_weights = []
+        if args.fed == "feddyn":
+            global_model_param = get_model_params([global_fl_model])[0]
         for idx, client in enumerate(fl_clients):
             # print(f"\n>>> General Client [{idx}] Training")
             if is_multi_resolution(config.MODEL.IMAGE_SIZE[idx]):
@@ -236,11 +295,26 @@ def main(args):
                 print(f"\n>>> General Client [{idx}]-[{args.client_res[idx]}] Single-res (No-KD) Federated Learning")
                 client.train_single_resolution(epoch)
             
-            client_weights.append(client.model.state_dict())
+            if args.fed == "feddyn":
+                curr_model_param = get_model_params([client.model], n_par)[0]
+
+                # No need to scale up hist terms. They are -\nabla/alpha and alpha is already scaled.
+                local_gradient_history_np[idx] += curr_model_param - global_model_param # 각 client의 weight - 이전 global model의 weight
+                # 즉, 이번 round에 학습한 local model들의 average - global model
+                client_param_np[idx] = curr_model_param
+            else:
+                client_weights.append(client.model.state_dict())
         
         # aggregate weights
-        logger.info(">>> load Fed-Averaged weight to the client model ...")
-        w_glob_client = fed_server.aggregate(logger, client_weights)
+        if args.fed == "feddyn":
+            logger.info(">>> load FedDyn-ing weight to the client model ...")
+            avg_model_param = np.mean(client_param_np, axis = 0) # FedAvg (aggregate)
+            global_model_param = avg_model_param + np.mean(local_gradient_history_np, axis=0) # penalty term
+
+            w_glob_client = set_model_from_params_to_dict(global_fl_model.to(device), global_model_param, device) 
+        else:
+            logger.info(">>> load Fed-Averaged weight to the client model ...")
+            w_glob_client = fed_server.aggregate(logger, client_weights)
         
         # Broadcast weight to each clients
         logger.info(">>> load Fed-Averaged weight to the each client model ...")
@@ -252,12 +326,40 @@ def main(args):
                         client.model.state_dict()[key].data.copy_(w_glob_client[key])
                     # else:
                     #     print(f"ignore parameter: {key}")
+        elif args.fed == "feddyn":
+            for client in fl_clients:
+                model_state = client.model.state_dict()  # dict of tensors (params + buffers)
+                # w_glob_client은 서버에서 보낸 dict (일부 키만 포함할 수 있음)
+                for k, v in w_glob_client.items():
+                    if k in model_state:
+                        if model_state[k].shape == v.shape:
+                            model_state[k] = v.to(model_state[k].device)
+                        else:
+                            logger.warning(f"Shape mismatch for key {k}: model {model_state[k].shape}, incoming {v.shape}")
+                    else:
+                        logger.warning(f"Key {k} not found in client model_state; skipping")
+
+                client.model.load_state_dict(model_state)  # strict=True가 안전
         else:
             for client in fl_clients:
                 client.model.load_state_dict(w_glob_client)
         
         # load weight to global fl model
-        global_fl_model.load_state_dict(w_glob_client)
+        if args.fed == "feddyn":
+            model_state = global_fl_model.state_dict()  # dict of tensors (params + buffers)
+            # w_glob_client은 서버에서 보낸 dict (일부 키만 포함할 수 있음)
+            for k, v in w_glob_client.items():
+                if k in model_state:
+                    if model_state[k].shape == v.shape:
+                        model_state[k] = v.to(model_state[k].device)
+                    else:
+                        logger.warning(f"Shape mismatch for key {k}: model {model_state[k].shape}, incoming {v.shape}")
+                else:
+                    logger.warning(f"Key {k} not found in client model_state; skipping")
+
+            global_fl_model.load_state_dict(model_state)  # strict=True가 안전
+        else:
+            global_fl_model.load_state_dict(w_glob_client)
         
         # # Set global model to eval mode for consistent evaluation
         # global_fl_model.eval()
