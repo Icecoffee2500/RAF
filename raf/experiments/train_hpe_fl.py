@@ -244,6 +244,7 @@ def main(args):
                     batch_size=args.train_bs,
                     is_proxy=False,
                     samples_per_split=args.samples_per_client,
+                    alpha_coef=args.dyn_alpha
                 )
             )
         n_par = len(get_model_params([global_fl_model])[0]) # model의 params 개수

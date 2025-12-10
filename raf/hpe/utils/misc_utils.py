@@ -92,6 +92,7 @@ def parse_args():
     parser.add_argument("--client_num", type=int, help="Client number")
     parser.add_argument("--train_bs", type=int, default=32, help="Train Batch Size")
     parser.add_argument("--loss_scale", type=int, default=1, help="loss scale")
+    parser.add_argument("--dyn_alpha", type=float, default=1e-6, help="Dynamic Regularization alpha Coefficient")
     parser.add_argument(
         "--client_res",
         type=str,

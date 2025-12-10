@@ -40,6 +40,7 @@ class FedDynClient:
         batch_size,
         is_proxy=False,
         samples_per_split=0,
+        alpha_coef=1e-6,
     ):
         print("I am FedDyn Client -----------------------------------------")
         self.client_id = client_id
@@ -55,7 +56,8 @@ class FedDynClient:
         self.n_par = len(self.get_model_params([self.model])[0]) # model의 params 개수
         # self.local_gradient_history = np.zeros((self.n_par)).astype('float32') # h-state initialization
         self.local_gradient_history = torch.zeros(self.n_par, dtype=torch.float32, device=device)
-        self.alpha_coef = 1e-2
+        self.alpha_coef = alpha_coef
+        print(f"FedDyn Regularization Alpha value is {self.alpha_coef}!")
         
         # global client model -> gpu
         self.model.to(device)
@@ -181,6 +183,7 @@ class FedDynClient:
             heatmap,
             heatmap_weight,
         )
+        # print(f"gt loss: {loss.item()}")
 
         # -------- FedDyn Local loss ----------------------
 
@@ -195,9 +198,18 @@ class FedDynClient:
         # print(f"type of local_par_list: {type(local_par_list)}")
         # print(f"type of global model param: {type(global_model_param)}")
         # print(f"type of self.local_gradient_history: {type(self.local_gradient_history)}")
+        # print(f"local_par_list: {local_par_list.shape}")
+        # print(f"torch.sum(local_par_list): {torch.sum(local_par_list)}")
+        # print(f"-global_model_param + self.local_gradient_history: {(-global_model_param + self.local_gradient_history)}")
+        # print(f"torch.sum(-global_model_param + self.local_gradient_history): {torch.sum(-global_model_param + self.local_gradient_history)}")
+        # print(f"torch.sum(local_par_list * (-global_model_param + self.local_gradient_history)): {torch.sum(local_par_list * (-global_model_param + self.local_gradient_history))}")
         loss_feddyn = self.alpha_coef * torch.sum(local_par_list * (-global_model_param + self.local_gradient_history))
 
+        # print(f"feddyn loss: {loss_feddyn.item()}")
+        
         loss = loss + loss_feddyn
+
+        # print(f"total batch loss: {loss.item()}")
         
         # backward propagation
         self.optimizer.zero_grad()
