@@ -1,85 +1,23 @@
 #!/bin/bash
 
-# HHH / fedavg / mrkd
-uv run raf/experiments/test_hpe.py --cfg raf/configs/hpe/mpii_mpii_mpii/vit-small_256x192_192x144_128x96_sfl.yaml --pretrained output/fl_fedavg-4000-hhh-mrkd.pth --wandb --gpu 7 --test_res 64 48
-uv run raf/experiments/test_hpe.py --cfg raf/configs/hpe/mpii_mpii_mpii/vit-small_256x192_192x144_128x96_sfl.yaml --pretrained output/fl_fedavg-4000-hhh-mrkd.pth --wandb --gpu 7 --test_res 128 96
-uv run raf/experiments/test_hpe.py --cfg raf/configs/hpe/mpii_mpii_mpii/vit-small_256x192_192x144_128x96_sfl.yaml --pretrained output/fl_fedavg-4000-hhh-mrkd.pth --wandb --gpu 7 --test_res 192 144
-uv run raf/experiments/test_hpe.py --cfg raf/configs/hpe/mpii_mpii_mpii/vit-small_256x192_192x144_128x96_sfl.yaml --pretrained output/fl_fedavg-4000-hhh-mrkd.pth --wandb --gpu 7 --test_res 256 192
-uv run raf/experiments/test_hpe.py --cfg raf/configs/hpe/mpii_mpii_mpii/vit-small_256x192_192x144_128x96_sfl.yaml --pretrained output/fl_fedavg-4000-hhh-mrkd.pth --wandb --gpu 7 --test_res 320 240
-uv run raf/experiments/test_hpe.py --cfg raf/configs/hpe/mpii_mpii_mpii/vit-small_256x192_192x144_128x96_sfl.yaml --pretrained output/fl_fedavg-4000-hhh-mrkd.pth --wandb --gpu 7 --test_res 384 288
-uv run raf/experiments/test_hpe.py --cfg raf/configs/hpe/mpii_mpii_mpii/vit-small_256x192_192x144_128x96_sfl.yaml --pretrained output/fl_fedavg-4000-hhh-mrkd.pth --wandb --gpu 7 --test_res 512 384
+# HML / feddyn / no kd
+uv run raf/experiments/test_hpe.py --cfg raf/configs/hpe/mpii_mpii_mpii/vit-small_256x192_192x144_128x96_sfl.yaml --pretrained output/fl_feddyn-coef_1e-9-4000-hml-nokd.pth --wandb --gpu 7 --test_res 64 48
+uv run raf/experiments/test_hpe.py --cfg raf/configs/hpe/mpii_mpii_mpii/vit-small_256x192_192x144_128x96_sfl.yaml --pretrained output/fl_feddyn-coef_1e-9-4000-hml-nokd.pth --wandb --gpu 7 --test_res 128 96
+uv run raf/experiments/test_hpe.py --cfg raf/configs/hpe/mpii_mpii_mpii/vit-small_256x192_192x144_128x96_sfl.yaml --pretrained output/fl_feddyn-coef_1e-9-4000-hml-nokd.pth --wandb --gpu 7 --test_res 192 144
+uv run raf/experiments/test_hpe.py --cfg raf/configs/hpe/mpii_mpii_mpii/vit-small_256x192_192x144_128x96_sfl.yaml --pretrained output/fl_feddyn-coef_1e-9-4000-hml-nokd.pth --wandb --gpu 7 --test_res 256 192
+uv run raf/experiments/test_hpe.py --cfg raf/configs/hpe/mpii_mpii_mpii/vit-small_256x192_192x144_128x96_sfl.yaml --pretrained output/fl_feddyn-coef_1e-9-4000-hml-nokd.pth --wandb --gpu 7 --test_res 320 240
+uv run raf/experiments/test_hpe.py --cfg raf/configs/hpe/mpii_mpii_mpii/vit-small_256x192_192x144_128x96_sfl.yaml --pretrained output/fl_feddyn-coef_1e-9-4000-hml-nokd.pth --wandb --gpu 7 --test_res 384 288
+uv run raf/experiments/test_hpe.py --cfg raf/configs/hpe/mpii_mpii_mpii/vit-small_256x192_192x144_128x96_sfl.yaml --pretrained output/fl_feddyn-coef_1e-9-4000-hml-nokd.pth --wandb --gpu 7 --test_res 512 384
 
-# HHH / fedavg / no kd
-uv run raf/experiments/test_hpe.py --cfg raf/configs/hpe/mpii_mpii_mpii/vit-small_256x192_192x144_128x96_sfl.yaml --pretrained output/fl_fedavg-4000-hhh-no_kd.pth --wandb --gpu 7 --test_res 64 48
-uv run raf/experiments/test_hpe.py --cfg raf/configs/hpe/mpii_mpii_mpii/vit-small_256x192_192x144_128x96_sfl.yaml --pretrained output/fl_fedavg-4000-hhh-no_kd.pth --wandb --gpu 7 --test_res 128 96
-uv run raf/experiments/test_hpe.py --cfg raf/configs/hpe/mpii_mpii_mpii/vit-small_256x192_192x144_128x96_sfl.yaml --pretrained output/fl_fedavg-4000-hhh-no_kd.pth --wandb --gpu 7 --test_res 192 144
-uv run raf/experiments/test_hpe.py --cfg raf/configs/hpe/mpii_mpii_mpii/vit-small_256x192_192x144_128x96_sfl.yaml --pretrained output/fl_fedavg-4000-hhh-no_kd.pth --wandb --gpu 7 --test_res 256 192
-uv run raf/experiments/test_hpe.py --cfg raf/configs/hpe/mpii_mpii_mpii/vit-small_256x192_192x144_128x96_sfl.yaml --pretrained output/fl_fedavg-4000-hhh-no_kd.pth --wandb --gpu 7 --test_res 320 240
-uv run raf/experiments/test_hpe.py --cfg raf/configs/hpe/mpii_mpii_mpii/vit-small_256x192_192x144_128x96_sfl.yaml --pretrained output/fl_fedavg-4000-hhh-no_kd.pth --wandb --gpu 7 --test_res 384 288
-uv run raf/experiments/test_hpe.py --cfg raf/configs/hpe/mpii_mpii_mpii/vit-small_256x192_192x144_128x96_sfl.yaml --pretrained output/fl_fedavg-4000-hhh-no_kd.pth --wandb --gpu 7 --test_res 512 384
+# HML / feddyn / mrkd
+uv run raf/experiments/test_hpe.py --cfg raf/configs/hpe/mpii_mpii_mpii/vit-small_256x192_192x144_128x96_sfl.yaml --pretrained output/fl_feddyn-coef_1e-9-4000-hml-mrkd.pth --wandb --gpu 7 --test_res 64 48
+uv run raf/experiments/test_hpe.py --cfg raf/configs/hpe/mpii_mpii_mpii/vit-small_256x192_192x144_128x96_sfl.yaml --pretrained output/fl_feddyn-coef_1e-9-4000-hml-mrkd.pth --wandb --gpu 7 --test_res 128 96
+uv run raf/experiments/test_hpe.py --cfg raf/configs/hpe/mpii_mpii_mpii/vit-small_256x192_192x144_128x96_sfl.yaml --pretrained output/fl_feddyn-coef_1e-9-4000-hml-mrkd.pth --wandb --gpu 7 --test_res 192 144
+uv run raf/experiments/test_hpe.py --cfg raf/configs/hpe/mpii_mpii_mpii/vit-small_256x192_192x144_128x96_sfl.yaml --pretrained output/fl_feddyn-coef_1e-9-4000-hml-mrkd.pth --wandb --gpu 7 --test_res 256 192
+uv run raf/experiments/test_hpe.py --cfg raf/configs/hpe/mpii_mpii_mpii/vit-small_256x192_192x144_128x96_sfl.yaml --pretrained output/fl_feddyn-coef_1e-9-4000-hml-mrkd.pth --wandb --gpu 7 --test_res 320 240
+uv run raf/experiments/test_hpe.py --cfg raf/configs/hpe/mpii_mpii_mpii/vit-small_256x192_192x144_128x96_sfl.yaml --pretrained output/fl_feddyn-coef_1e-9-4000-hml-mrkd.pth --wandb --gpu 7 --test_res 384 288
+uv run raf/experiments/test_hpe.py --cfg raf/configs/hpe/mpii_mpii_mpii/vit-small_256x192_192x144_128x96_sfl.yaml --pretrained output/fl_feddyn-coef_1e-9-4000-hml-mrkd.pth --wandb --gpu 7 --test_res 512 384
 
-# HML / fedavg / no kd
-uv run raf/experiments/test_hpe.py --cfg raf/configs/hpe/mpii_mpii_mpii/vit-small_256x192_192x144_128x96_sfl.yaml --pretrained output/fl_fedavg-4000-hml-no_kd.pth --wandb --gpu 7 --test_res 64 48
-uv run raf/experiments/test_hpe.py --cfg raf/configs/hpe/mpii_mpii_mpii/vit-small_256x192_192x144_128x96_sfl.yaml --pretrained output/fl_fedavg-4000-hml-no_kd.pth --wandb --gpu 7 --test_res 128 96
-uv run raf/experiments/test_hpe.py --cfg raf/configs/hpe/mpii_mpii_mpii/vit-small_256x192_192x144_128x96_sfl.yaml --pretrained output/fl_fedavg-4000-hml-no_kd.pth --wandb --gpu 7 --test_res 192 144
-uv run raf/experiments/test_hpe.py --cfg raf/configs/hpe/mpii_mpii_mpii/vit-small_256x192_192x144_128x96_sfl.yaml --pretrained output/fl_fedavg-4000-hml-no_kd.pth --wandb --gpu 7 --test_res 256 192
-uv run raf/experiments/test_hpe.py --cfg raf/configs/hpe/mpii_mpii_mpii/vit-small_256x192_192x144_128x96_sfl.yaml --pretrained output/fl_fedavg-4000-hml-no_kd.pth --wandb --gpu 7 --test_res 320 240
-uv run raf/experiments/test_hpe.py --cfg raf/configs/hpe/mpii_mpii_mpii/vit-small_256x192_192x144_128x96_sfl.yaml --pretrained output/fl_fedavg-4000-hml-no_kd.pth --wandb --gpu 7 --test_res 384 288
-uv run raf/experiments/test_hpe.py --cfg raf/configs/hpe/mpii_mpii_mpii/vit-small_256x192_192x144_128x96_sfl.yaml --pretrained output/fl_fedavg-4000-hml-no_kd.pth --wandb --gpu 7 --test_res 512 384
-
-# high / fedbn / no kd
-uv run raf/experiments/test_hpe.py --cfg raf/configs/hpe/mpii_mpii_mpii/vit-small_256x192_192x144_128x96_sfl.yaml --pretrained output/fl_fedbn-4000-hml-highBn-no_kd.pth --wandb --gpu 7 --test_res 64 48
-uv run raf/experiments/test_hpe.py --cfg raf/configs/hpe/mpii_mpii_mpii/vit-small_256x192_192x144_128x96_sfl.yaml --pretrained output/fl_fedbn-4000-hml-highBn-no_kd.pth --wandb --gpu 7 --test_res 128 96
-uv run raf/experiments/test_hpe.py --cfg raf/configs/hpe/mpii_mpii_mpii/vit-small_256x192_192x144_128x96_sfl.yaml --pretrained output/fl_fedbn-4000-hml-highBn-no_kd.pth --wandb --gpu 7 --test_res 192 144
-uv run raf/experiments/test_hpe.py --cfg raf/configs/hpe/mpii_mpii_mpii/vit-small_256x192_192x144_128x96_sfl.yaml --pretrained output/fl_fedbn-4000-hml-highBn-no_kd.pth --wandb --gpu 7 --test_res 256 192
-uv run raf/experiments/test_hpe.py --cfg raf/configs/hpe/mpii_mpii_mpii/vit-small_256x192_192x144_128x96_sfl.yaml --pretrained output/fl_fedbn-4000-hml-highBn-no_kd.pth --wandb --gpu 7 --test_res 320 240
-uv run raf/experiments/test_hpe.py --cfg raf/configs/hpe/mpii_mpii_mpii/vit-small_256x192_192x144_128x96_sfl.yaml --pretrained output/fl_fedbn-4000-hml-highBn-no_kd.pth --wandb --gpu 7 --test_res 384 288
-uv run raf/experiments/test_hpe.py --cfg raf/configs/hpe/mpii_mpii_mpii/vit-small_256x192_192x144_128x96_sfl.yaml --pretrained output/fl_fedbn-4000-hml-highBn-no_kd.pth --wandb --gpu 7 --test_res 512 384
-
-# mid / fedbn / no kd
-uv run raf/experiments/test_hpe.py --cfg raf/configs/hpe/mpii_mpii_mpii/vit-small_256x192_192x144_128x96_sfl.yaml --pretrained output/fl_fedbn-4000-hml-midBn-no_kd.pth --wandb --gpu 7 --test_res 64 48
-uv run raf/experiments/test_hpe.py --cfg raf/configs/hpe/mpii_mpii_mpii/vit-small_256x192_192x144_128x96_sfl.yaml --pretrained output/fl_fedbn-4000-hml-midBn-no_kd.pth --wandb --gpu 7 --test_res 128 96
-uv run raf/experiments/test_hpe.py --cfg raf/configs/hpe/mpii_mpii_mpii/vit-small_256x192_192x144_128x96_sfl.yaml --pretrained output/fl_fedbn-4000-hml-midBn-no_kd.pth --wandb --gpu 7 --test_res 192 144
-uv run raf/experiments/test_hpe.py --cfg raf/configs/hpe/mpii_mpii_mpii/vit-small_256x192_192x144_128x96_sfl.yaml --pretrained output/fl_fedbn-4000-hml-midBn-no_kd.pth --wandb --gpu 7 --test_res 256 192
-uv run raf/experiments/test_hpe.py --cfg raf/configs/hpe/mpii_mpii_mpii/vit-small_256x192_192x144_128x96_sfl.yaml --pretrained output/fl_fedbn-4000-hml-midBn-no_kd.pth --wandb --gpu 7 --test_res 320 240
-uv run raf/experiments/test_hpe.py --cfg raf/configs/hpe/mpii_mpii_mpii/vit-small_256x192_192x144_128x96_sfl.yaml --pretrained output/fl_fedbn-4000-hml-midBn-no_kd.pth --wandb --gpu 7 --test_res 384 288
-uv run raf/experiments/test_hpe.py --cfg raf/configs/hpe/mpii_mpii_mpii/vit-small_256x192_192x144_128x96_sfl.yaml --pretrained output/fl_fedbn-4000-hml-midBn-no_kd.pth --wandb --gpu 7 --test_res 512 384
-
-# low / fedbn / no kd
-uv run raf/experiments/test_hpe.py --cfg raf/configs/hpe/mpii_mpii_mpii/vit-small_256x192_192x144_128x96_sfl.yaml --pretrained output/fl_fedbn-4000-hml-lowBn-no_kd.pth --wandb --gpu 7 --test_res 64 48
-uv run raf/experiments/test_hpe.py --cfg raf/configs/hpe/mpii_mpii_mpii/vit-small_256x192_192x144_128x96_sfl.yaml --pretrained output/fl_fedbn-4000-hml-lowBn-no_kd.pth --wandb --gpu 7 --test_res 128 96
-uv run raf/experiments/test_hpe.py --cfg raf/configs/hpe/mpii_mpii_mpii/vit-small_256x192_192x144_128x96_sfl.yaml --pretrained output/fl_fedbn-4000-hml-lowBn-no_kd.pth --wandb --gpu 7 --test_res 192 144
-uv run raf/experiments/test_hpe.py --cfg raf/configs/hpe/mpii_mpii_mpii/vit-small_256x192_192x144_128x96_sfl.yaml --pretrained output/fl_fedbn-4000-hml-lowBn-no_kd.pth --wandb --gpu 7 --test_res 256 192
-uv run raf/experiments/test_hpe.py --cfg raf/configs/hpe/mpii_mpii_mpii/vit-small_256x192_192x144_128x96_sfl.yaml --pretrained output/fl_fedbn-4000-hml-lowBn-no_kd.pth --wandb --gpu 7 --test_res 320 240
-uv run raf/experiments/test_hpe.py --cfg raf/configs/hpe/mpii_mpii_mpii/vit-small_256x192_192x144_128x96_sfl.yaml --pretrained output/fl_fedbn-4000-hml-lowBn-no_kd.pth --wandb --gpu 7 --test_res 384 288
-uv run raf/experiments/test_hpe.py --cfg raf/configs/hpe/mpii_mpii_mpii/vit-small_256x192_192x144_128x96_sfl.yaml --pretrained output/fl_fedbn-4000-hml-lowBn-no_kd.pth --wandb --gpu 7 --test_res 512 384
-
-# high / fedbn / mrkd
-uv run raf/experiments/test_hpe.py --cfg raf/configs/hpe/mpii_mpii_mpii/vit-small_256x192_192x144_128x96_sfl.yaml --pretrained output/fl_fedbn-4000-hml-highBn-mrkd.pth --wandb --gpu 7 --test_res 64 48
-uv run raf/experiments/test_hpe.py --cfg raf/configs/hpe/mpii_mpii_mpii/vit-small_256x192_192x144_128x96_sfl.yaml --pretrained output/fl_fedbn-4000-hml-highBn-mrkd.pth --wandb --gpu 7 --test_res 128 96
-uv run raf/experiments/test_hpe.py --cfg raf/configs/hpe/mpii_mpii_mpii/vit-small_256x192_192x144_128x96_sfl.yaml --pretrained output/fl_fedbn-4000-hml-highBn-mrkd.pth --wandb --gpu 7 --test_res 192 144
-uv run raf/experiments/test_hpe.py --cfg raf/configs/hpe/mpii_mpii_mpii/vit-small_256x192_192x144_128x96_sfl.yaml --pretrained output/fl_fedbn-4000-hml-highBn-mrkd.pth --wandb --gpu 7 --test_res 256 192
-uv run raf/experiments/test_hpe.py --cfg raf/configs/hpe/mpii_mpii_mpii/vit-small_256x192_192x144_128x96_sfl.yaml --pretrained output/fl_fedbn-4000-hml-highBn-mrkd.pth --wandb --gpu 7 --test_res 320 240
-uv run raf/experiments/test_hpe.py --cfg raf/configs/hpe/mpii_mpii_mpii/vit-small_256x192_192x144_128x96_sfl.yaml --pretrained output/fl_fedbn-4000-hml-highBn-mrkd.pth --wandb --gpu 7 --test_res 384 288
-uv run raf/experiments/test_hpe.py --cfg raf/configs/hpe/mpii_mpii_mpii/vit-small_256x192_192x144_128x96_sfl.yaml --pretrained output/fl_fedbn-4000-hml-highBn-mrkd.pth --wandb --gpu 7 --test_res 512 384
-
-# mid / fedbn / mrkd
-uv run raf/experiments/test_hpe.py --cfg raf/configs/hpe/mpii_mpii_mpii/vit-small_256x192_192x144_128x96_sfl.yaml --pretrained output/fl_fedbn-4000-hml-midBn-mrkd.pth --wandb --gpu 7 --test_res 64 48
-uv run raf/experiments/test_hpe.py --cfg raf/configs/hpe/mpii_mpii_mpii/vit-small_256x192_192x144_128x96_sfl.yaml --pretrained output/fl_fedbn-4000-hml-midBn-mrkd.pth --wandb --gpu 7 --test_res 128 96
-uv run raf/experiments/test_hpe.py --cfg raf/configs/hpe/mpii_mpii_mpii/vit-small_256x192_192x144_128x96_sfl.yaml --pretrained output/fl_fedbn-4000-hml-midBn-mrkd.pth --wandb --gpu 7 --test_res 192 144
-uv run raf/experiments/test_hpe.py --cfg raf/configs/hpe/mpii_mpii_mpii/vit-small_256x192_192x144_128x96_sfl.yaml --pretrained output/fl_fedbn-4000-hml-midBn-mrkd.pth --wandb --gpu 7 --test_res 256 192
-uv run raf/experiments/test_hpe.py --cfg raf/configs/hpe/mpii_mpii_mpii/vit-small_256x192_192x144_128x96_sfl.yaml --pretrained output/fl_fedbn-4000-hml-midBn-mrkd.pth --wandb --gpu 7 --test_res 320 240
-uv run raf/experiments/test_hpe.py --cfg raf/configs/hpe/mpii_mpii_mpii/vit-small_256x192_192x144_128x96_sfl.yaml --pretrained output/fl_fedbn-4000-hml-midBn-mrkd.pth --wandb --gpu 7 --test_res 384 288
-uv run raf/experiments/test_hpe.py --cfg raf/configs/hpe/mpii_mpii_mpii/vit-small_256x192_192x144_128x96_sfl.yaml --pretrained output/fl_fedbn-4000-hml-midBn-mrkd.pth --wandb --gpu 7 --test_res 512 384
-
-# low / fedbn / mrkd
-uv run raf/experiments/test_hpe.py --cfg raf/configs/hpe/mpii_mpii_mpii/vit-small_256x192_192x144_128x96_sfl.yaml --pretrained output/fl_fedbn-4000-hml-lowBn-mrkd.pth --wandb --gpu 7 --test_res 64 48
-uv run raf/experiments/test_hpe.py --cfg raf/configs/hpe/mpii_mpii_mpii/vit-small_256x192_192x144_128x96_sfl.yaml --pretrained output/fl_fedbn-4000-hml-lowBn-mrkd.pth --wandb --gpu 7 --test_res 128 96
-uv run raf/experiments/test_hpe.py --cfg raf/configs/hpe/mpii_mpii_mpii/vit-small_256x192_192x144_128x96_sfl.yaml --pretrained output/fl_fedbn-4000-hml-lowBn-mrkd.pth --wandb --gpu 7 --test_res 192 144
-uv run raf/experiments/test_hpe.py --cfg raf/configs/hpe/mpii_mpii_mpii/vit-small_256x192_192x144_128x96_sfl.yaml --pretrained output/fl_fedbn-4000-hml-lowBn-mrkd.pth --wandb --gpu 7 --test_res 256 192
-uv run raf/experiments/test_hpe.py --cfg raf/configs/hpe/mpii_mpii_mpii/vit-small_256x192_192x144_128x96_sfl.yaml --pretrained output/fl_fedbn-4000-hml-lowBn-mrkd.pth --wandb --gpu 7 --test_res 320 240
-uv run raf/experiments/test_hpe.py --cfg raf/configs/hpe/mpii_mpii_mpii/vit-small_256x192_192x144_128x96_sfl.yaml --pretrained output/fl_fedbn-4000-hml-lowBn-mrkd.pth --wandb --gpu 7 --test_res 384 288
-uv run raf/experiments/test_hpe.py --cfg raf/configs/hpe/mpii_mpii_mpii/vit-small_256x192_192x144_128x96_sfl.yaml --pretrained output/fl_fedbn-4000-hml-lowBn-mrkd.pth --wandb --gpu 7 --test_res 512 384
 
 
 # fl_fedavg-4000-hhh-no_kd.pth
@@ -94,3 +32,7 @@ uv run raf/experiments/test_hpe.py --cfg raf/configs/hpe/mpii_mpii_mpii/vit-smal
 # fl_fedbn-4000-hml-highBn-no_kd.pth
 # fl_fedbn-4000-hml-midBn-no_kd.pth
 # fl_fedbn-4000-hml-lowBn-no_kd.pth
+
+# fl_feddyn-coef_1e-9-4000-hml-nokd.pth
+# fl_feddyn-coef_1e-9-4000-hml-mrkd.pth
+# fl_moon-4000-hml-nokd.pth
