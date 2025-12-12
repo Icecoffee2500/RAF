@@ -3,6 +3,7 @@ import os
 import numpy as np
 from pathlib import Path
 import importlib
+import time
 
 # 현재 파일의 위치에서 프로젝트 루트까지의 경로 설정
 current_file = Path(__file__).resolve()
@@ -234,6 +235,10 @@ def main(args):
     
     for epoch in range(config.TRAIN.BEGIN_EPOCH, config.TRAIN.END_EPOCH):
         init_time = datetime.now()
+
+        # # for cost comparison
+        # torch.cuda.reset_peak_memory_stats(device)
+        # memory_start = time.perf_counter()
         
         # scheduler step
         for client in fl_clients:
@@ -282,6 +287,20 @@ def main(args):
             for i, g in enumerate(client.optimizer.param_groups):
                 g["lr"] = lr_[i]
 
+        # # for cost comparison
+        # torch.cuda.synchronize(device)
+        # end = time.perf_counter()
+
+        # peak_alloc = torch.cuda.max_memory_allocated(device)
+        # current_alloc = torch.cuda.memory_allocated(device)
+        # reserved = torch.cuda.memory_reserved(device)
+
+        # print(f"step time: {end-memory_start:.3f}s")
+        # print(f"GPU peak allocated: {peak_alloc/1024**2:.2f} MB")
+        # print(f"GPU currently allocated: {current_alloc/1024**2:.2f} MB")
+        # print(f"GPU reserved (cached): {reserved/1024**2:.2f} MB")
+        # print(torch.cuda.memory_summary(device=device, abbreviated=True))
+
         # -------- Test --------------------------------------------------------
         # evaluate on validation set
         if epoch % config.EVALUATION.INTERVAL == 0:
@@ -306,8 +325,8 @@ def main(args):
                 # )
                 perf_indicator = client.evaluate(
                     final_output_dir=final_output_dir,
-                    backbone=backbone,
-                    keypoint_head=deconv_head,
+                    # backbone=backbone,
+                    # keypoint_head=deconv_head,
                     wdb=wdb,
                 )
                 curr_avg_perf = curr_avg_perf + perf_indicator / len(fl_clients) # this is average performance

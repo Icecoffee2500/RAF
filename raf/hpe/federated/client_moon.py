@@ -25,7 +25,7 @@ from hpe.federated.loss_fns import JointsKLDLoss
 
 from thop import profile
 
-class FedDynClient:
+class MOONClient:
     def __init__(
         self,
         client_id,
@@ -40,24 +40,19 @@ class FedDynClient:
         batch_size,
         is_proxy=False,
         samples_per_split=0,
-        alpha_coef=1e-6,
+        temperature=0.5,
+        mu_con=1
     ):
-        print("I am FedDyn Client -----------------------------------------")
         self.client_id = client_id
         self.config = config
         self.logger = logger
         self.device = device
         self.model = deepcopy(init_model)  # 이전과 동일하게 deepcopy 사용
+        self.prev_model = deepcopy(init_model)
         self.losses = AverageMeter()
         self.acc = AverageMeter()
         self.wdb = wdb
         self.is_proxy = is_proxy
-
-        self.n_par = len(self.get_model_params([self.model])[0]) # model의 params 개수
-        # self.local_gradient_history = np.zeros((self.n_par)).astype('float32') # h-state initialization
-        self.local_gradient_history = torch.zeros(self.n_par, dtype=torch.float32, device=device)
-        self.alpha_coef = alpha_coef
-        print(f"FedDyn Regularization Alpha value is {self.alpha_coef}!")
         
         # global client model -> gpu
         self.model.to(device)
@@ -68,6 +63,10 @@ class FedDynClient:
         )
         self.criterion = get_loss(config)
         self.criterion_kd = JointsKLDLoss().to(device)
+        self.criterion_ce = torch.nn.CrossEntropyLoss().to(device)
+
+        self.temperature = temperature
+        self.mu_con = mu_con
         
         # Data loading code
         normalize = transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
@@ -118,17 +117,17 @@ class FedDynClient:
         self.acc.reset()
         self.model.train()
         
-        # For FEDPROX
-        if self.config.FED.FEDPROX:
-            print(f"FEDPROX GOOOOOOOOOOO!!!!!!!!!!!!!")
-            global_dict = self.model.state_dict()
-            mu = 1.0
-        else:
-            global_dict = None
-            mu = 0.0
-        
-        # 여기에서 global_model_param은 그냥 global model을 numpy array로 만든 것.
-        global_model_param = torch.tensor(self.get_model_params([self.model], self.n_par)[0], device=self.device)
+        global_model = deepcopy(self.model)
+
+        # Global/Previous 모델은 학습되지 않도록 Freeze (메모리/속도 최적화)
+        global_model.eval()
+        for p in global_model.parameters():
+            p.requires_grad = False
+            
+        self.prev_model.to(self.device)
+        self.prev_model.eval()
+        for p in self.prev_model.parameters():
+            p.requires_grad = False
         
         epoch_start_time = datetime.now()
         batch_num = len(self.train_loader)
@@ -137,8 +136,7 @@ class FedDynClient:
             # etime = gpu_timer(lambda: self._train_step_single(img, heatmap, heatmap_weight))
             etime = gpu_timer(
                 lambda: self._train_step_single(
-                    img, heatmap, heatmap_weight,
-                    global_model_param=global_model_param
+                    img, heatmap, heatmap_weight, global_model
                 )
             )
             batch_time.update(etime)
@@ -153,8 +151,9 @@ class FedDynClient:
                 train_batch_size=batch_num,
                 total_batch_time=batch_time,
             )
+        self.prev_model = deepcopy(self.model)
     
-    def _train_step_single(self, img, heatmap, heatmap_weight, global_model_param):
+    def _train_step_single(self, img, heatmap, heatmap_weight, global_model):
         
         # forward propagation
         img, heatmap, heatmap_weight = img.to(self.device), heatmap.to(self.device), heatmap_weight.to(self.device)
@@ -170,43 +169,39 @@ class FedDynClient:
         # print(f"GFLOPs: {gflops:.2f} GFLOPs")
         # print(f"Model Size: {model_size_mb:.2f} MB")
 
-        output = self.model(img)
+        cos=torch.nn.CosineSimilarity(dim=-1)
+
+
+        output, representation = self.model(img)
+
+        with torch.no_grad():
+            _, representation_global = global_model(img)
+            _, representation_prev = self.prev_model(img)
+
+        posi = cos(representation, representation_global)
+        logits = posi.reshape(-1,1)
+        # print(f"logits-po shape: {logits.shape}")
+
+        nega = cos(representation, representation_prev)
+        logits = torch.cat((logits, nega.reshape(-1,1)), dim=1)
+        # print(f"logits-ne shape: {logits.shape}")
+
+        logits /= self.temperature
+
+        labels = torch.zeros(img.size(0)).cuda().long()
+
+        loss_con = self.mu_con * self.criterion_ce(logits, labels)
         
         # calculate privacy loss
-        loss = self.cal_loss(
+        loss_gt = self.cal_loss(
             self.config,
             self.criterion,
             output,
             heatmap,
             heatmap_weight,
         )
-        # print(f"gt loss: {loss.item()}")
 
-        # -------- FedDyn Local loss ----------------------
-
-        # Get linear penalty on the current parameter estimates
-        local_par_list = None
-        for param in self.model.parameters():
-            if not isinstance(local_par_list, torch.Tensor):
-                # Initially nothing to concatenate
-                local_par_list = param.reshape(-1)
-            else:
-                local_par_list = torch.cat((local_par_list, param.reshape(-1)), 0)
-        # print(f"type of local_par_list: {type(local_par_list)}")
-        # print(f"type of global model param: {type(global_model_param)}")
-        # print(f"type of self.local_gradient_history: {type(self.local_gradient_history)}")
-        # print(f"local_par_list: {local_par_list.shape}")
-        # print(f"torch.sum(local_par_list): {torch.sum(local_par_list)}")
-        # print(f"-global_model_param + self.local_gradient_history: {(-global_model_param + self.local_gradient_history)}")
-        # print(f"torch.sum(-global_model_param + self.local_gradient_history): {torch.sum(-global_model_param + self.local_gradient_history)}")
-        # print(f"torch.sum(local_par_list * (-global_model_param + self.local_gradient_history)): {torch.sum(local_par_list * (-global_model_param + self.local_gradient_history))}")
-        loss_feddyn = self.alpha_coef * torch.sum(local_par_list * (-global_model_param + self.local_gradient_history))
-
-        # print(f"feddyn loss: {loss_feddyn.item()}")
-        
-        loss = loss + loss_feddyn
-
-        # print(f"total batch loss: {loss.item()}")
+        loss = loss_gt + loss_con
         
         # backward propagation
         self.optimizer.zero_grad()
@@ -217,10 +212,6 @@ class FedDynClient:
         
         # step optimizer
         self.optimizer.step()
-
-        # 그 다음에 바로 self.local_gradient_history 업데이트
-        curr_local_model_params = torch.tensor(self.get_model_params([self.model], self.n_par)[0], device=self.device)
-        self.local_gradient_history += curr_local_model_params - global_model_param # 각 client의 weight - 이전 global model의 weight
         
         # calculate accuracy
         _, avg_acc, cnt, pred = accuracy(
@@ -246,9 +237,6 @@ class FedDynClient:
             global_dict = None
             mu = 0.0
         
-        # for feddyn
-        global_model_param = torch.tensor(self.get_model_params([self.model], self.n_par)[0], device=self.device)
-
         epoch_start_time = datetime.now()
         batch_num = len(self.train_loader)
         
@@ -256,7 +244,8 @@ class FedDynClient:
             etime = gpu_timer(
                 lambda: self._train_step_multi(
                     imgs, heatmaps, heatmap_weights,
-                    global_model_param
+                    global_dict=global_dict,
+                    mu=mu
                 )
             )
             batch_time.update(etime)
@@ -272,16 +261,16 @@ class FedDynClient:
                 total_batch_time=batch_time,
             )
     
-    def _train_step_multi(self, imgs, heatmaps, heatmap_weights, global_model_param):
+    def _train_step_multi(self, imgs, heatmaps, heatmap_weights, **proximal):
         # forward propagation
         teacher_output = None
         total_avg_acc = 0.0
         total_cnt = 0
         total_loss = torch.tensor(0.0, device=self.device, requires_grad=True)
         
-
-        # torch.cuda.reset_peak_memory_stats(self.device)
-        # memory_start = time.perf_counter()
+        # FedProx
+        global_dict = proximal.get("global_dict", None)
+        mu = proximal.get("mu", None)
         
         imgs = [img.to(self.device) for img in imgs]
         heatmaps = [heatmap.to(self.device) for heatmap in heatmaps]
@@ -301,20 +290,6 @@ class FedDynClient:
                 heatmap,
                 heatmap_weight,
             )
-
-            # -------- FedDyn Local loss ----------------------
-
-            # Get linear penalty on the current parameter estimates
-            local_par_list = None
-            for param in self.model.parameters():
-                if not isinstance(local_par_list, torch.Tensor):
-                    # Initially nothing to concatenate
-                    local_par_list = param.reshape(-1)
-                else:
-                    local_par_list = torch.cat((local_par_list, param.reshape(-1)), 0)
-            loss_feddyn = self.alpha_coef * torch.sum(local_par_list * (-global_model_param + self.local_gradient_history))
-
-            loss_gt = loss_gt + loss_feddyn
             
             # knolwedge distillation loss
             if teacher_output is not None:
@@ -375,26 +350,30 @@ class FedDynClient:
         # calculate gradient norm
         grad_norm = self.clip_grads(self.model.parameters())
         
+        # FedProx일 경우.
+        # local 모델의 named_parameters와 순회하면서
+        if global_dict is not None and mu is not None:
+            for name, local_param in self.model.named_parameters():
+                if name not in global_dict:
+                    # 이 이름은 global에 없으므로 건너뛰거나 warning
+                    print(f"[no global param] {name}")
+                    continue
+
+                global_param = global_dict[name]
+                # 크기 체크
+                if local_param.shape != global_param.shape:
+                    print(f"[mismatch] {name}: local {tuple(local_param.shape)} vs global {tuple(global_param.shape)}")
+                    continue
+                
+                # FedProx 적용
+                if local_param.grad is None:
+                    local_param.grad = torch.zeros_like(local_param)
+                with torch.no_grad():
+                    delta = mu * (global_param.detach() - local_param.detach())
+                    local_param.grad.add_(delta)
         
         # step optimizer
         self.optimizer.step()
-
-        # 그 다음에 바로 self.local_gradient_history 업데이트
-        curr_local_model_params = torch.tensor(self.get_model_params([self.model], self.n_par)[0], device=self.device)
-        self.local_gradient_history += curr_local_model_params - global_model_param # 각 client의 weight - 이전 global model의 weight
-
-        # torch.cuda.synchronize(self.device)
-        # end = time.perf_counter()
-
-        # peak_alloc = torch.cuda.max_memory_allocated(self.device)
-        # current_alloc = torch.cuda.memory_allocated(self.device)
-        # reserved = torch.cuda.memory_reserved(self.device)
-
-        # print(f"step time: {end-memory_start:.3f}s")
-        # print(f"GPU peak allocated: {peak_alloc/1024**2:.2f} MB")
-        # print(f"GPU currently allocated: {current_alloc/1024**2:.2f} MB")
-        # print(f"GPU reserved (cached): {reserved/1024**2:.2f} MB")
-        # print(torch.cuda.memory_summary(device=self.device, abbreviated=True))
         
         # record accuracy
         self.acc.update(total_avg_acc, total_cnt)
@@ -424,7 +403,7 @@ class FedDynClient:
             for batch_idx, (img, heatmap, heatmap_weight, meta) in enumerate(self.valid_loader):
                 img, heatmap, heatmap_weight = img.to(self.device), heatmap.to(self.device), heatmap_weight.to(self.device)                
                 #---------forward prop-------------
-                output = self.model(img)
+                output, _ = self.model(img)
                 
                 # Flip Test
                 if self.config.TEST.FLIP_TEST:
@@ -579,20 +558,3 @@ class FedDynClient:
                     self.wdb.log({f"Client [{idx}] Avg loss": self.losses.avg})
                     self.wdb.log({f"Client [{idx}] Accuracy": self.acc.avg})
     
-    # --- Helper functions
-    def get_model_params(self, model_list, n_par=None):
-        
-        if n_par==None:
-            exp_mdl = model_list[0]
-            n_par = 0
-            for name, param in exp_mdl.named_parameters():
-                n_par += len(param.data.reshape(-1))
-        
-        param_mat = np.zeros((len(model_list), n_par)).astype('float32')
-        for i, model in enumerate(model_list):
-            idx = 0
-            for name, param in model.named_parameters():
-                temp = param.data.cpu().numpy().reshape(-1)
-                param_mat[i, idx:idx + len(temp)] = temp
-                idx += len(temp)
-        return np.copy(param_mat)

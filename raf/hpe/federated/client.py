@@ -148,9 +148,6 @@ class FLClient:
         # FedProx
         global_dict = proximal.get("global_dict", None)
         mu = proximal.get("mu", None)
-
-        # torch.cuda.reset_peak_memory_stats(self.device)
-        # memory_start = time.perf_counter()
         
         # forward propagation
         img, heatmap, heatmap_weight = img.to(self.device), heatmap.to(self.device), heatmap_weight.to(self.device)
@@ -208,19 +205,6 @@ class FLClient:
         
         # step optimizer
         self.optimizer.step()
-
-        # torch.cuda.synchronize(self.device)
-        # end = time.perf_counter()
-
-        # peak_alloc = torch.cuda.max_memory_allocated(self.device)
-        # current_alloc = torch.cuda.memory_allocated(self.device)
-        # reserved = torch.cuda.memory_reserved(self.device)
-
-        # print(f"step time: {end-memory_start:.3f}s")
-        # print(f"GPU peak allocated: {peak_alloc/1024**2:.2f} MB")
-        # print(f"GPU currently allocated: {current_alloc/1024**2:.2f} MB")
-        # print(f"GPU reserved (cached): {reserved/1024**2:.2f} MB")
-        # print(torch.cuda.memory_summary(device=self.device, abbreviated=True))
         
         # calculate accuracy
         _, avg_acc, cnt, pred = accuracy(
@@ -280,9 +264,6 @@ class FLClient:
         # FedProx
         global_dict = proximal.get("global_dict", None)
         mu = proximal.get("mu", None)
-
-        # torch.cuda.reset_peak_memory_stats(self.device)
-        # memory_start = time.perf_counter()
         
         imgs = [img.to(self.device) for img in imgs]
         heatmaps = [heatmap.to(self.device) for heatmap in heatmaps]
@@ -386,19 +367,6 @@ class FLClient:
         
         # step optimizer
         self.optimizer.step()
-
-        # torch.cuda.synchronize(self.device)
-        # end = time.perf_counter()
-
-        # peak_alloc = torch.cuda.max_memory_allocated(self.device)
-        # current_alloc = torch.cuda.memory_allocated(self.device)
-        # reserved = torch.cuda.memory_reserved(self.device)
-
-        # print(f"step time: {end-memory_start:.3f}s")
-        # print(f"GPU peak allocated: {peak_alloc/1024**2:.2f} MB")
-        # print(f"GPU currently allocated: {current_alloc/1024**2:.2f} MB")
-        # print(f"GPU reserved (cached): {reserved/1024**2:.2f} MB")
-        # print(torch.cuda.memory_summary(device=self.device, abbreviated=True))
         
         # record accuracy
         self.acc.update(total_avg_acc, total_cnt)

@@ -134,8 +134,6 @@ class FLClientScaffold(FLClient):
     
     def _train_step_single(self, img, heatmap, heatmap_weight, **proximal):
 
-        # torch.cuda.reset_peak_memory_stats(self.device)
-        # memory_start = time.perf_counter()
         # forward propagation
         img, heatmap, heatmap_weight = img.to(self.device), heatmap.to(self.device), heatmap_weight.to(self.device)
         output = self.model(img)
@@ -167,19 +165,6 @@ class FLClientScaffold(FLClient):
         
         # step optimizer
         self.optimizer.step()
-
-        # torch.cuda.synchronize(self.device)
-        # end = time.perf_counter()
-
-        # peak_alloc = torch.cuda.max_memory_allocated(self.device)
-        # current_alloc = torch.cuda.memory_allocated(self.device)
-        # reserved = torch.cuda.memory_reserved(self.device)
-
-        # print(f"step time: {end-memory_start:.3f}s")
-        # print(f"GPU peak allocated: {peak_alloc/1024**2:.2f} MB")
-        # print(f"GPU currently allocated: {current_alloc/1024**2:.2f} MB")
-        # print(f"GPU reserved (cached): {reserved/1024**2:.2f} MB")
-        # print(torch.cuda.memory_summary(device=self.device, abbreviated=True))
         
         # calculate accuracy
         _, avg_acc, cnt, pred = accuracy(

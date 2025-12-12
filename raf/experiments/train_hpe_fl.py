@@ -3,6 +3,7 @@ import os
 import numpy as np
 from pathlib import Path
 import importlib
+import time
 
 # 현재 파일의 위치에서 프로젝트 루트까지의 경로 설정
 current_file = Path(__file__).resolve()
@@ -29,9 +30,11 @@ from hpe.utils.resolution_utils import setup_client_resolutions, is_multi_resolu
 from federated.server import FedServer
 from hpe.federated.client import FLClient
 from hpe.federated.client_feddyn import FedDynClient
+from hpe.federated.client_moon import MOONClient
 from hpe.models import ViT
 from hpe.models import TopdownHeatmapSimpleHead
 from hpe.models import ViTPose
+from hpe.models.vit_pose_moon import ViTPoseMOON
 
 # --- Helper functions
 
@@ -208,7 +211,10 @@ def main(args):
         out_channels=config.MODEL.NUM_JOINTS,
     )
     
-    global_fl_model = ViTPose(backbone, deconv_head)
+    if args.fed == "moon":
+        global_fl_model = ViTPoseMOON(backbone, deconv_head)
+    else:
+        global_fl_model = ViTPose(backbone, deconv_head)
     
     # fl client model weight initialization
     if "mae" in str(pretrained_path):
@@ -252,6 +258,25 @@ def main(args):
 
         init_param_np = get_model_params([global_fl_model], n_par)[0]
         client_param_np  = np.ones(args.client_num).astype('float32').reshape(-1, 1) * init_param_np.reshape(1, -1) # n_clnt X n_par
+    elif args.fed == "moon":
+        for idx in range(args.client_num):
+            fl_clients.append(
+                MOONClient(
+                    client_id=idx, # dataset의 index
+                    config=config,
+                    device=device,
+                    init_model=global_fl_model,  # 이전과 동일하게 init_model 전달
+                    extra=extra,
+                    wdb=wdb,
+                    logger=logger,
+                    im_size=config.MODEL.IMAGE_SIZE[idx],
+                    hm_size=config.MODEL.HEATMAP_SIZE[idx],
+                    batch_size=args.train_bs,
+                    is_proxy=False,
+                    samples_per_split=args.samples_per_client,
+                    mu_con=args.mu_con
+                )
+            )
     else:
         for idx in range(args.client_num):
             fl_clients.append(
@@ -278,6 +303,10 @@ def main(args):
     
     for epoch in range(config.TRAIN.BEGIN_EPOCH, config.TRAIN.END_EPOCH):
         init_time = datetime.now()
+
+        # # for cost comparison
+        # torch.cuda.reset_peak_memory_stats(device)
+        # memory_start = time.perf_counter()
         
         # scheduler step
         for client in fl_clients:
@@ -373,6 +402,20 @@ def main(args):
             for i, g in enumerate(client.optimizer.param_groups):
                 g["lr"] = lr_[i]
 
+        # # for cost comparison
+        # torch.cuda.synchronize(device)
+        # end = time.perf_counter()
+
+        # peak_alloc = torch.cuda.max_memory_allocated(device)
+        # current_alloc = torch.cuda.memory_allocated(device)
+        # reserved = torch.cuda.memory_reserved(device)
+
+        # print(f"step time: {end-memory_start:.3f}s")
+        # print(f"GPU peak allocated: {peak_alloc/1024**2:.2f} MB")
+        # print(f"GPU currently allocated: {current_alloc/1024**2:.2f} MB")
+        # print(f"GPU reserved (cached): {reserved/1024**2:.2f} MB")
+        # print(torch.cuda.memory_summary(device=device, abbreviated=True))
+        
         # -------- Test --------------------------------------------------------
         # evaluate on validation set
         if epoch % config.EVALUATION.INTERVAL == 0:
