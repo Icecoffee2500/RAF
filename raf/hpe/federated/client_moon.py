@@ -201,6 +201,8 @@ class MOONClient:
             heatmap_weight,
         )
 
+        # print(f"loss_gt: {loss_gt.item()} / loss_con: {loss_con.item()}")
+
         loss = loss_gt + loss_con
         
         # backward propagation
