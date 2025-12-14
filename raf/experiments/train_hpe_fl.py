@@ -376,18 +376,18 @@ def main(args):
         
         # load weight to global fl model
         if args.fed == "feddyn":
-            model_state = global_fl_model.state_dict()  # dict of tensors (params + buffers)
+            global_model_state = global_fl_model.state_dict()  # dict of tensors (params + buffers)
             # w_glob_client은 서버에서 보낸 dict (일부 키만 포함할 수 있음)
             for k, v in w_glob_client.items():
-                if k in model_state:
-                    if model_state[k].shape == v.shape:
-                        model_state[k] = v.to(model_state[k].device)
+                if k in global_model_state:
+                    if global_model_state[k].shape == v.shape:
+                        global_model_state[k] = v.to(global_model_state[k].device)
                     else:
-                        logger.warning(f"Shape mismatch for key {k}: model {model_state[k].shape}, incoming {v.shape}")
+                        logger.warning(f"Shape mismatch for key {k}: model {global_model_state[k].shape}, incoming {v.shape}")
                 else:
                     logger.warning(f"Key {k} not found in client model_state; skipping")
 
-            global_fl_model.load_state_dict(model_state)  # strict=True가 안전
+            global_fl_model.load_state_dict(global_model_state)  # strict=True가 안전
         else:
             global_fl_model.load_state_dict(w_glob_client)
         
@@ -473,7 +473,8 @@ def main(args):
                         {
                             "epoch": epoch + 1,
                             "model_client": get_model_name(config),
-                            "state_dict": global_fl_model.state_dict(),
+                            # "state_dict": global_fl_model.state_dict(),
+                            "state_dict": fl_clients[0].model.state_dict(),
                             "perf": curr_avg_perf,
                             "optimizer": fl_clients[0].optimizer.state_dict(),
                             "HM_LOSS": config.LOSS.HM_LOSS,
