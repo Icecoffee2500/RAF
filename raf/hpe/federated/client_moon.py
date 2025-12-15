@@ -230,26 +230,23 @@ class MOONClient:
         self.acc.reset()
         self.model.train()
         
-        # For FEDPROX
-        if self.config.FED.FEDPROX:
-            print(f"FEDPROX GOOOOOOOOOOO!!!!!!!!!!!!!")
-            global_dict = self.model.state_dict()
-            mu = 1.0
-        else:
-            global_dict = None
-            mu = 0.0
+        global_model = deepcopy(self.model)
+
+        # Global/Previous 모델은 학습되지 않도록 Freeze (메모리/속도 최적화)
+        global_model.eval()
+        for p in global_model.parameters():
+            p.requires_grad = False
+            
+        self.prev_model.to(self.device)
+        self.prev_model.eval()
+        for p in self.prev_model.parameters():
+            p.requires_grad = False
         
         epoch_start_time = datetime.now()
         batch_num = len(self.train_loader)
         
         for batch_idx, (imgs, heatmaps, heatmap_weights, meta) in enumerate(self.train_loader):
-            etime = gpu_timer(
-                lambda: self._train_step_multi(
-                    imgs, heatmaps, heatmap_weights,
-                    global_dict=global_dict,
-                    mu=mu
-                )
-            )
+            etime = gpu_timer(lambda: self._train_step_multi(imgs, heatmaps, heatmap_weights, global_model))
             batch_time.update(etime)
             
             # logging
@@ -263,16 +260,12 @@ class MOONClient:
                 total_batch_time=batch_time,
             )
     
-    def _train_step_multi(self, imgs, heatmaps, heatmap_weights, **proximal):
+    def _train_step_multi(self, imgs, heatmaps, heatmap_weights, global_model):
         # forward propagation
         teacher_output = None
         total_avg_acc = 0.0
         total_cnt = 0
         total_loss = torch.tensor(0.0, device=self.device, requires_grad=True)
-        
-        # FedProx
-        global_dict = proximal.get("global_dict", None)
-        mu = proximal.get("mu", None)
         
         imgs = [img.to(self.device) for img in imgs]
         heatmaps = [heatmap.to(self.device) for heatmap in heatmaps]
@@ -282,6 +275,29 @@ class MOONClient:
             output = self.model(img)
             heatmap = heatmaps[idx]
             heatmap_weight = heatmap_weights[idx]
+
+            cos=torch.nn.CosineSimilarity(dim=-1)
+
+
+            output, representation = self.model(img)
+
+            with torch.no_grad():
+                _, representation_global = global_model(img)
+                _, representation_prev = self.prev_model(img)
+
+            posi = cos(representation, representation_global)
+            logits = posi.reshape(-1,1)
+            # print(f"logits-po shape: {logits.shape}")
+
+            nega = cos(representation, representation_prev)
+            logits = torch.cat((logits, nega.reshape(-1,1)), dim=1)
+            # print(f"logits-ne shape: {logits.shape}")
+
+            logits /= self.temperature
+
+            labels = torch.zeros(img.size(0)).cuda().long()
+
+            loss_con = self.mu_con * self.criterion_ce(logits, labels)
             
             # calculate gt loss
             # heatmap loss
@@ -314,12 +330,13 @@ class MOONClient:
                 # )
                 
                 alpha = self.config.KD_ALPHA
-                loss = loss_gt * alpha + loss_kd * (1 - alpha)
+                # loss = loss_gt * alpha + loss_kd * (1 - alpha)
+                loss = loss_gt * alpha + loss_kd * (1 - alpha) + alpha * loss_con
                 # print(f"[{img.shape[2]}x{img.shape[3]}] KD Loss Used")
                 # loss = loss_kd * (1 - alpha)
                 # loss = loss_gt + loss_kd
             else:
-                loss = loss_gt
+                loss = loss_gt + loss_con
                 # print(f"[{img.shape[2]}x{img.shape[3]}] GT Loss Used")
                 # loss = 0
             
@@ -351,28 +368,6 @@ class MOONClient:
         
         # calculate gradient norm
         grad_norm = self.clip_grads(self.model.parameters())
-        
-        # FedProx일 경우.
-        # local 모델의 named_parameters와 순회하면서
-        if global_dict is not None and mu is not None:
-            for name, local_param in self.model.named_parameters():
-                if name not in global_dict:
-                    # 이 이름은 global에 없으므로 건너뛰거나 warning
-                    print(f"[no global param] {name}")
-                    continue
-
-                global_param = global_dict[name]
-                # 크기 체크
-                if local_param.shape != global_param.shape:
-                    print(f"[mismatch] {name}: local {tuple(local_param.shape)} vs global {tuple(global_param.shape)}")
-                    continue
-                
-                # FedProx 적용
-                if local_param.grad is None:
-                    local_param.grad = torch.zeros_like(local_param)
-                with torch.no_grad():
-                    delta = mu * (global_param.detach() - local_param.detach())
-                    local_param.grad.add_(delta)
         
         # step optimizer
         self.optimizer.step()
