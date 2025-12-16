@@ -94,3 +94,5 @@ uv run raf/experiments/test_hpe.py --cfg raf/configs/hpe/mpii_mpii_mpii/vit-smal
 # fl_moon-mu_con_1e-6-4000-hml-nokd.pth
 # fl_moon-mu_con_1e-7-4000-hml-nokd.pth
 # fl_moon-mu_con_1e-8-4000-hml-nokd.pth
+
+# fl_moon-mu_con_1e-8-4000-hml-mrkd.pth
