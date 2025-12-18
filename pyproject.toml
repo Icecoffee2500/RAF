@@ -34,6 +34,7 @@ dependencies = [
     "wandb",
     "pycocotools",
     "thop>=0.1.1.post2209072238",
+    "pandas>=2.0.3",
 ]
 
 [tool.setuptools.packages.find]

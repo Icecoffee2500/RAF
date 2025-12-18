@@ -74,3 +74,35 @@ def create_logger_sfl(cfg, cfg_name, phase="train", arg=None):
     logging.getLogger("").addHandler(console)
 
     return logger, str(final_output_dir) 
+
+def create_logger_classification(cfg, cfg_name, phase="train", arg=None):
+    root_output_dir = Path(cfg.OUTPUT_DIR)
+
+    # set up logger
+    if not root_output_dir.exists():
+        print(f"=> creating {root_output_dir}")
+        root_output_dir.mkdir()
+    time_str = time.strftime("%Y-%m-%d-%H-%M")
+
+    model = f"{cfg.MODEL.NAME}-{cfg.MODEL.TYPE}"
+
+    cfg_name = os.path.basename(cfg_name).split(".")[0]
+    cfg_name = f"{cfg_name}_{time_str}"
+    if arg is not None:
+        cfg_name += f"_{arg}"
+
+    final_output_dir = root_output_dir / "classification" / model / cfg_name
+
+    print(f"=> creating {final_output_dir}")
+    final_output_dir.mkdir(parents=True, exist_ok=True)
+
+    log_file = f"{cfg_name}_{time_str}_{phase}.log"
+    final_log_file = final_output_dir / log_file
+    head = "%(asctime)-15s %(message)s"
+    logging.basicConfig(filename=str(final_log_file), format=head)
+    logger = logging.getLogger()
+    logger.setLevel(logging.INFO)
+    console = logging.StreamHandler()
+    logging.getLogger("").addHandler(console)
+
+    return logger, str(final_output_dir) 

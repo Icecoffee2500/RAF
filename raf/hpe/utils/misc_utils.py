@@ -103,6 +103,13 @@ def parse_args():
         help="Resolution of clients (high / mid / low)"
     )
     parser.add_argument(
+        "--cls_res",
+        type=int,
+        default="",
+        nargs='+',
+        help="Resolution of clients"
+    )
+    parser.add_argument(
         "--test_res",
         type=int,
         nargs='+',
