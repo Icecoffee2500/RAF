@@ -166,7 +166,7 @@ class FLClientClassification:
     #     self.losses.update(loss.item(), img.size(0))
 
     def train_single_resolution(self, epoch):
-        print_freq = 1000
+        print_freq = 200
         batch_time = AverageMeter()
         self.losses.reset()
         self.acc.reset()
@@ -222,7 +222,7 @@ class FLClientClassification:
 
     @torch.no_grad()
     def evaluate(self, wdb, amp=True):
-        print_freq = 1000
+        print_freq = 200
         batch_time = AverageMeter()
         self.losses.reset()
         self.acc.reset()

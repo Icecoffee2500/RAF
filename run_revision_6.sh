@@ -42,4 +42,4 @@ uv run raf/experiments/train_hpe_fl.py --cfg raf/configs/hpe/mpii_mpii_mpii/vit-
 
 
 
-uv run raf/experiments/train_classification_cl.py --cfg raf/configs/hpe/mpii_mpii_mpii/vit-small_256x192_192x144_128x96_sfl.yaml --pretrained ../pretrained/mae_pretrain_vit_small.pth --wandb --gpu 0 --train_bs 32 --cls_res 224 160 128
+uv run raf/experiments/train_classification_cl.py --cfg raf/configs/hpe/mpii_mpii_mpii/vit-small_256x192_192x144_128x96_sfl.yaml --pretrained ../pretrained/mae_pretrain_vit_small.pth --wandb --gpu 6 --train_bs 128 --cls_res 224 160 128
