@@ -25,7 +25,11 @@ from hpe.utils.post_processing import get_final_preds
 from hpe.federated.loss_fns import JointsKLDLoss
 
 from timm.utils import accuracy
+from timm.scheduler import create_scheduler
+from timm.optim import create_optimizer
 
+# from torch._six import inf
+import math
 from thop import profile
 
 class FLClientClassification:
@@ -35,6 +39,7 @@ class FLClientClassification:
         train_loader,
         valid_loader,
         config,
+        args,
         device,
         init_model,
         extra,
@@ -55,6 +60,8 @@ class FLClientClassification:
         self.acc = AverageMeter()
         self.wdb = wdb
         self.is_proxy = is_proxy
+
+        self.args = args
         
         # global client model -> gpu
         self.model.to(device)
@@ -67,7 +74,94 @@ class FLClientClassification:
         # self.criterion_kd = JointsKLDLoss().to(device)
 
         self.criterion = torch.nn.CrossEntropyLoss()
+
+        # self.optimizer = create_optimizer(args, self.model)
+        # loss_scaler = NativeScalerWithGradNormCount()
+
+        # args.warmup_epochs = int(args.warmup_epochs)
+        # args.cooldown_epochs = int(args.cooldown_epochs)
+        # self.lr_scheduler, _ = create_scheduler(args, self.optimizer)
+
+        # opt_n = sum(p.numel() for g in self.optimizer.param_groups for p in g['params'])
+        # model_n = sum(p.numel() for p in self.model.parameters())
+        # print("optimizer params:", opt_n, "model params:", model_n)
+
+        # # (실행 환경에서) optimizer, model은 이미 정의되어 있어야 함
+        # opt_param_ids = {id(p) for g in self.optimizer.param_groups for p in g['params']}
+
+        # missing = []
+        # for n, p in self.model.named_parameters():
+        #     if id(p) not in opt_param_ids:
+        #         missing.append((n, tuple(p.shape), p.numel(), p.requires_grad))
+
+        # print("missing count:", len(missing))
+        # total_missing = sum(x[2] for x in missing)
+        # print("total missing params:", total_missing)
+        # for name, shape, numel, req in missing[:200]:   # 너무 많으면 앞부분만
+        #     print(name, shape, numel, "requires_grad=", req)
+
+        # 1) 모델이 final 상태인지 확인 (model.to(device), DDP 래핑 등 모두 끝난 뒤)
+        # if using DDP: model = torch.nn.parallel.DistributedDataParallel(model, ...)
+
+        # 2) 모든 requires_grad=True 파라미터를 포함한 단일 그룹 옵티마이저로 재생성 (진단용)
+        # self.optimizer = torch.optim.AdamW(filter(lambda p: p.requires_grad, self.model.parameters()),
+        #                             lr=1e-4, weight_decay=0.05)
+        # self.lr_scheduler = MultistepWarmUpRestargets(
+        #     self.optimizer, milestones=config.TRAIN.LR_STEP, gamma=config.TRAIN.LR_FACTOR
+        # )
+
+        # for i,g in enumerate(self.optimizer.param_groups):
+        #     print(i, "lr:", g['lr'], "n_params:", len(g['params']))
+
+        # # 3) 재확인
+        # opt_n = sum(p.numel() for g in self.optimizer.param_groups for p in g['params'])
+        # model_n = sum(p.numel() for p in self.model.parameters() if p.requires_grad)
+        # print("optimizer params:", opt_n, "model (requires_grad) params:", model_n)
+        # ideally opt_n == model_n
+
+        # BACKBONE_LR = 1e-4
+        # HEAD_LR = 1e-3
+        # WEIGHT_DECAY = 0.05
+        # WARMUP_EPOCHS = 5
+        # EPOCHS = 210
+
+
+        # # ---------- Param groups: backbone vs head ----------
+        # # identify head params by name (adjust if your model uses different names)
+        # head_keywords = ['head', 'classifier', 'fc']  # adapt if needed
         
+        # head_params = []
+        # backbone_params = []
+        # for n, p in self.model.named_parameters():
+        #     if any(k in n.lower() for k in head_keywords):
+        #         head_params.append(p)
+        #     else:
+        #         backbone_params.append(p)
+
+        # print("model total params:", sum(p.numel() for p in self.model.parameters()))
+        # print("backbone params:", sum(p.numel() for p in backbone_params))
+        # print("head params:", sum(p.numel() for p in head_params))
+
+        # self.optimizer = torch.optim.AdamW([
+        #     {'params': backbone_params, 'lr': BACKBONE_LR, 'weight_decay': WEIGHT_DECAY},
+        #     {'params': head_params, 'lr': HEAD_LR, 'weight_decay': WEIGHT_DECAY},
+        # ])
+
+        # # Check optimizer covers all params
+        # opt_n = sum(p.numel() for g in self.optimizer.param_groups for p in g['params'])
+        # model_n = sum(p.numel() for p in self.model.parameters())
+        # assert opt_n == model_n, f"optimizer params {opt_n} != model params {model_n}  <-- recreate optimizer after model.to()/DDP!"
+
+        # # ---------- Scheduler: Linear warmup -> Cosine decay ----------
+        # def get_lr_lambda(epoch):
+        #     if epoch < WARMUP_EPOCHS:
+        #         return float(epoch + 1) / float(max(1, WARMUP_EPOCHS))
+        #     else:
+        #         # cosine decay from 1.0 -> 0.0 over remaining epochs
+        #         progress = float(epoch - WARMUP_EPOCHS) / float(max(1, EPOCHS - WARMUP_EPOCHS))
+        #         return 0.5 * (1.0 + math.cos(math.pi * progress))
+
+        # self.lr_scheduler = torch.optim.lr_scheduler.LambdaLR(self.optimizer, lr_lambda=get_lr_lambda)
         
         # ------------------------------------------------------------------------------
         # 나중에 hydra config의 instantiate 함수로 대체할 것.
@@ -166,6 +260,7 @@ class FLClientClassification:
     #     self.losses.update(loss.item(), img.size(0))
 
     def train_single_resolution(self, epoch):
+
         print_freq = 200
         batch_time = AverageMeter()
         self.losses.reset()
@@ -176,6 +271,7 @@ class FLClientClassification:
         batch_num = len(self.train_loader)
         
         for batch_idx, (imgs, labels) in enumerate(self.train_loader):
+            adjust_learning_rate(self.optimizer, batch_idx / len(self.train_loader) + epoch, self.args)
             # etime = gpu_timer(lambda: self._train_step_single(img, heatmap, heatmap_weight))
             etime = gpu_timer(
                 lambda: self.train_one_epoch(imgs, labels)
@@ -194,11 +290,12 @@ class FLClientClassification:
                 print_freq=print_freq
             )
     
+    
     def train_one_epoch(self, imgs, labels):
-        
         loss = 0
                 
-        imgs = imgs.to(self.device, non_blocking=True)
+        # imgs = imgs.to(self.device, non_blocking=True)
+        imgs = imgs[self.client_id].to(self.device, non_blocking=True)
         labels = labels.to(self.device, non_blocking=True)
 
         # with torch.cuda.amp.autocast(enabled=True):
@@ -469,3 +566,59 @@ if __name__  == "__main__":
     for idx, img in enumerate(imgs):
         print(f"[{idx}] img shape: {img.shape}")
     print(f"label is {label}")
+
+class NativeScalerWithGradNormCount:
+    state_dict_key = "amp_scaler"
+
+    def __init__(self):
+        self._scaler = torch.cuda.amp.GradScaler()
+
+    def __call__(self, loss, optimizer, clip_grad=None, parameters=None, create_graph=False, update_grad=True):
+        self._scaler.scale(loss).backward(create_graph=create_graph)
+        if update_grad:
+            if clip_grad is not None:
+                assert parameters is not None
+                self._scaler.unscale_(optimizer)  # unscale the gradients of optimizer's assigned params in-place
+                norm = torch.nn.utils.clip_grad_norm_(parameters, clip_grad)
+            else:
+                self._scaler.unscale_(optimizer)
+                norm = get_grad_norm_(parameters)
+            self._scaler.step(optimizer)
+            self._scaler.update()
+        else:
+            norm = None
+        return norm
+
+    def state_dict(self):
+        return self._scaler.state_dict()
+
+    def load_state_dict(self, state_dict):
+        self._scaler.load_state_dict(state_dict)
+
+def get_grad_norm_(parameters, norm_type: float = 2.0) -> torch.Tensor:
+    if isinstance(parameters, torch.Tensor):
+        parameters = [parameters]
+    parameters = [p for p in parameters if p.grad is not None]
+    norm_type = float(norm_type)
+    if len(parameters) == 0:
+        return torch.tensor(0.)
+    device = parameters[0].grad.device
+    if norm_type == inf:
+        total_norm = max(p.grad.detach().abs().max().to(device) for p in parameters)
+    else:
+        total_norm = torch.norm(torch.stack([torch.norm(p.grad.detach(), norm_type).to(device) for p in parameters]), norm_type)
+    return total_norm
+
+def adjust_learning_rate(optimizer, epoch, args):
+    """Decay the learning rate with half-cycle cosine after warmup"""
+    if epoch < args.warmup_epochs:
+        lr = args.lr * epoch / args.warmup_epochs 
+    else:
+        lr = args.min_lr + (args.lr - args.min_lr) * 0.5 * \
+            (1. + math.cos(math.pi * (epoch - args.warmup_epochs) / (args.epochs - args.warmup_epochs)))
+    for param_group in optimizer.param_groups:
+        if "lr_scale" in param_group:
+            param_group["lr"] = lr * param_group["lr_scale"]
+        else:
+            param_group["lr"] = lr
+    return lr

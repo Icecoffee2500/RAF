@@ -36,6 +36,8 @@ from hpe.models.vit import ViT
 from hpe.models.topdown_heatmap_simple_head import TopdownHeatmapSimpleHead
 from hpe.models.vit_classification import ResFormer
 from hpe.dataset.facefair import VAL_LABEL_CSV, MRFairFaceDataset, build_transform, sample_dataset_subset, SingleResFromMultiRes, ResolutionBatchSampler, TRAIN_LABEL_CSV, IMG_ROOT, ROOT_DIR
+from hpe.utils.model_utils import get_vit_optimizer
+from hpe.models.vit_pose import ViTPose
 
 # Type hint for config to allow dynamic attribute access
 config: Any = config
@@ -124,6 +126,34 @@ def main(args):
         print("Diff Group : ", config.MODEL.DIFF_NAME)
     
     # For Federated Learning -------------------
+
+    ## Backbone - ViT
+    backbone = ViT(
+        img_size=extra["backbone"]["img_size"],
+        patch_size=extra["backbone"]["patch_size"],
+        embed_dim=extra["backbone"]["embed_dim"],
+        in_channels=3,
+        num_heads=extra["backbone"]["num_heads"],
+        depth=extra["backbone"]["depth"],
+        qkv_bias=True,
+        drop_path_rate=extra["backbone"]["drop_path_rate"],
+        use_gpe=config.MODEL.USE_GPE,
+        use_lpe=config.MODEL.USE_LPE,
+        use_gap=config.MODEL.USE_GAP,
+    )
+ 
+    ## HEAD - Heatmap Simple Head
+    deconv_head = TopdownHeatmapSimpleHead(
+        in_channels=extra["keypoint_head"]["in_channels"],
+        num_deconv_layers=extra["keypoint_head"]["num_deconv_layers"],
+        num_deconv_filters=extra["keypoint_head"]["num_deconv_filters"],
+        num_deconv_kernels=extra["keypoint_head"]["num_deconv_kernels"],
+        extra=dict(final_conv_kernel=1),
+        out_channels=config.MODEL.NUM_JOINTS,
+    )
+    
+    global_fl_model = ViTPose(backbone, deconv_head)
+    print(f"hpe model state:\n{global_fl_model.state_dict().keys()}")
     
     num_classes = 7
 
@@ -138,6 +168,7 @@ def main(args):
         qkv_bias=True,
         drop_path_rate=extra["backbone"]["drop_path_rate"],
     )
+    print(f"global_model state:\n{global_model.state_dict().keys()}")
     
     # fl client model weight initialization
     if "mae" in str(pretrained_path):
@@ -176,11 +207,20 @@ def main(args):
         seed=123
     )
     
+    # train_loader = torch.utils.data.DataLoader(
+    #     # train_dataset_single_res,
+    #     train_dataset,
+    #     batch_sampler=batch_sampler,
+    #     # shuffle=True,
+    #     # shuffle=False,
+    #     num_workers=4,
+    #     pin_memory=True
+    # )
     train_loader = torch.utils.data.DataLoader(
-        train_dataset_single_res,
-        batch_sampler=batch_sampler,
-        # shuffle=True,
+        train_dataset,
+        shuffle=True,
         # shuffle=False,
+        batch_size=args.train_bs,
         num_workers=4,
         pin_memory=True
     )
@@ -197,7 +237,8 @@ def main(args):
 
     print(f"ROOT_DIR: {ROOT_DIR.resolve()}")
     print(f"TRAIN_LABEL_CSV: {TRAIN_LABEL_CSV.resolve()}")
-    print(f"length of dataset: {len(train_dataset_single_res)}")
+    # print(f"length of dataset: {len(train_dataset_single_res)}")
+    print(f"length of dataset: {len(train_dataset)}")
     # imgs, label = next(iter(train_loader))
 
     # for idx, (img, label) in enumerate(train_loader):
@@ -215,6 +256,7 @@ def main(args):
         train_loader=train_loader,
         valid_loader=valid_loader,
         config=config,
+        args=args,
         device=device,
         init_model=global_model,  # 이전과 동일하게 init_model 전달
         extra=extra,
@@ -226,12 +268,33 @@ def main(args):
     )
     
     perf_buf = [0.0]
+
+    # # ------------------------------------------------------------------
+    # # dataloader에서 1 batch 가져와서 반복 학습
+    # global_model.train()
+    # images, targets = next(iter(train_loader))  # batch size e.g. 8
+    # images, targets = images.to(device), targets.to(device)
+
+    # # optimizer = torch.optim.AdamW(global_model.parameters(), lr=1e-3, weight_decay=0.0)
+    # optimizer = get_vit_optimizer(config, global_model, extra)
+    # criterion = torch.nn.CrossEntropyLoss()
+
+    # for step in range(200):    # 수백 스텝
+    #     optimizer.zero_grad()
+    #     out = global_model(images)
+    #     loss = criterion(out, targets)
+    #     loss.backward()
+    #     optimizer.step()
+    #     if step % 10 == 0:
+    #         print(step, loss.item())
+    # # ------------------------------------------------------------------
     
     for epoch in range(config.TRAIN.BEGIN_EPOCH, config.TRAIN.END_EPOCH):
         init_time = datetime.now()
         
         # scheduler step
-        cl_client.lr_scheduler.step()
+        # cl_client.lr_scheduler.step()
+        cl_client.lr_scheduler.step(epoch)
 
         # -------- Train --------------------------------------------------------
         print(f"\n>>> Client Single Centralized Training")
