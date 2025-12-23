@@ -35,7 +35,8 @@ from hpe.federated.client import FLClient
 from hpe.models.vit import ViT
 from hpe.models.topdown_heatmap_simple_head import TopdownHeatmapSimpleHead
 from hpe.models.vit_classification import ResFormer
-from hpe.dataset.facefair import VAL_LABEL_CSV, MRFairFaceDataset, build_transform, sample_dataset_subset, SingleResFromMultiRes, ResolutionBatchSampler, TRAIN_LABEL_CSV, IMG_ROOT, ROOT_DIR
+from hpe.dataset.facefair import VAL_LABEL_CSV, MRFairFaceDataset, build_transform, TRAIN_LABEL_CSV, IMG_ROOT, ROOT_DIR
+from hpe.dataset.utils.utils import SingleResFromMultiRes, sample_dataset_subset, ResolutionBatchSampler
 from hpe.utils.model_utils import get_vit_optimizer
 from hpe.models.vit_pose import ViTPose
 

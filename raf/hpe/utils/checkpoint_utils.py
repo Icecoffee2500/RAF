@@ -146,7 +146,7 @@ def load_checkpoint(
     if list(state_dict.keys())[0].startswith("module."):
         state_dict = {k[7:]: v for k, v in state_dict.items()}
 
-    print(f"state_dict:\n{state_dict.keys()}")
+    # print(f"state_dict:\n{state_dict.keys()}")
     
     # for MoBY, load model of online branch
     # encoder로 시작하는 파라미터들은 앞에 encoder 떼어버림

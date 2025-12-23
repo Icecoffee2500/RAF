@@ -23,6 +23,8 @@ from hpe.utils.logging import ShellColors as sc
 from hpe.utils.post_processing import get_final_preds
 from hpe.federated.loss_fns import JointsKLDLoss
 
+from hpe.dataset.utils.utils import MixedResolutionDataset, HeteroBatchSampler
+
 from thop import profile
 
 class FLClient:
@@ -38,6 +40,7 @@ class FLClient:
         im_size,
         hm_size,
         batch_size,
+        cl_mr=False,
         is_proxy=False,
         samples_per_split=0,
     ):
@@ -96,10 +99,16 @@ class FLClient:
             is_train=False,
             transform=transforms.Compose([transforms.ToTensor(), normalize]),
         )
+
+        if cl_mr:
+            train_dataset = MixedResolutionDataset(train_dataset)
+            batch_sampler = HeteroBatchSampler(dataset_len=len(train_dataset), batch_size=32)
         
         self.train_loader, self.valid_loader = build_train_val_dataloader(
             train_dataset, self.valid_dataset,
-            list([config.TRAIN.BATCH_SIZE, config.TEST.BATCH_SIZE]), config.WORKERS)
+            list([config.TRAIN.BATCH_SIZE, config.TEST.BATCH_SIZE]), config.WORKERS,
+            cl_mr=cl_mr, batch_sampler=batch_sampler
+        )
         
         self.dataset_length = len(train_dataset)
         
@@ -124,6 +133,13 @@ class FLClient:
         
         for batch_idx, (img, heatmap, heatmap_weight, meta) in enumerate(self.train_loader):
             # etime = gpu_timer(lambda: self._train_step_single(img, heatmap, heatmap_weight))
+            # print(f"batch [{batch_idx}] img.shape: {img.shape}")
+            # print(f"batch [{batch_idx}] heatmap.shape: {heatmap.shape}")
+            # print(f"type(img): {type(img)}")
+            # print(f"type(heatmap): {type(heatmap)}")
+            # for i, (im, hm) in enumerate(zip(img, heatmap)):
+            #     print(f"img[{i}].shape: {im.shape}")
+            #     print(f"heatmap[{i}].shape: {hm.shape}")
             etime = gpu_timer(
                 lambda: self._train_step_single(
                     img, heatmap, heatmap_weight,

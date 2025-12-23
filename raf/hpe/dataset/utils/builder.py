@@ -31,19 +31,27 @@ def build_split_dataset(ori_dataset: Dataset, dataset_idx: int, samples_per_spli
     return SplitJointsDataset(ori_dataset, client_indices[dataset_idx])
 
 def build_train_val_dataloader(
-    train_dataset: Dataset, val_dataset: Dataset, batch_size: list[int], worker: int
+    train_dataset: Dataset, val_dataset: Dataset, batch_size: list[int], worker: int, cl_mr: bool = False, batch_sampler=None
     ) -> tuple[DataLoader, DataLoader]:
     print(f"batch_size[0]: {batch_size[0]}")
     print(f"batch_size[1]: {batch_size[1]}")
 
-    train_data_loader = DataLoader(
-        train_dataset,
-        batch_size=batch_size[0],
-        shuffle=True,
-        num_workers=worker,
-        pin_memory=True,
-        sampler=None,
-    )
+    if cl_mr:
+        train_data_loader = DataLoader(
+            train_dataset,
+            batch_sampler=batch_sampler,
+            num_workers=worker,
+            pin_memory=True,
+        )
+    else:
+        train_data_loader = DataLoader(
+            train_dataset,
+            batch_size=batch_size[0],
+            shuffle=True,
+            num_workers=worker,
+            pin_memory=True,
+            sampler=None,
+        )
 
     val_data_loader = DataLoader(
         val_dataset,

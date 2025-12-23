@@ -9,9 +9,6 @@ from PIL import Image
 import numpy as np
 from timm.data import create_transform
 from torchvision.transforms.functional import InterpolationMode
-from torch.utils.data import Subset
-from torch.utils.data import Sampler
-import random
 
 # -----------------------------
 # 1. 설정
@@ -82,40 +79,7 @@ class MRFairFaceDataset(Dataset):
 
         return trans_imgs, label  # trans_imgs: list[Tensor] (e.g., 3개 resolution → len=3)
 
-class SingleResFromMultiRes(Dataset):
-    """
-    Wrap a MultiResDataset that returns ([img_r1, img_r2, ...], label)
-    into a dataset that returns one resolution per sample.
-    If base_len = N and R resolutions, new length = N * R.
-    Order: idx -> base_idx = idx // R, res_idx = idx % R
-    """
-    def __init__(self, base_multi_res_dataset):
-        self.base = base_multi_res_dataset  # Subset or original
-        # underlying dataset (MRFairFaceDataset)
-        underlying = base_multi_res_dataset.dataset if isinstance(base_multi_res_dataset, Subset) else base_multi_res_dataset
-        self.R = len(underlying.resolutions)
-        self.N = len(base_multi_res_dataset)   # Subset.__len__ already reflects sampled size
 
-        print(f"resolution is {self.R}")
-
-    def __len__(self):
-        return self.N * self.R
-
-    def __getitem__(self, idx):
-        base_idx = idx // self.R
-        res_idx = idx % self.R
-        imgs_list, label = self.base[base_idx]    # imgs_list: list of tensors (C,H,W)
-        single_img = imgs_list[res_idx]
-        return single_img, label
-
-
-def sample_dataset_subset(dataset, n_samples, seed=42):
-    N = len(dataset)
-    if n_samples >= N:
-        return dataset  # 그냥 원본 반환
-    rng = np.random.RandomState(seed)
-    indices = rng.choice(N, size=n_samples, replace=False)
-    return Subset(dataset, indices)
 
 
 def build_transform(is_train, input_size):
@@ -221,66 +185,3 @@ def show_samples(dataset, num_samples=12):
     plt.tight_layout()
     plt.show()
 
-class ResolutionBatchSampler(Sampler):
-    """
-    dataset_len: len(single_res_dataset) == N * R
-    R: number of resolutions
-    batch_size: batch size
-    shuffle: whether to shuffle within each resolution
-    drop_last: whether to drop last smaller batch per resolution
-    """
-    def __init__(self, dataset_len, R, batch_size, shuffle=True, drop_last=False, seed=None):
-        assert dataset_len % R == 0, "dataset_len should be N * R"
-        self.dataset_len = dataset_len
-        self.R = R
-        self.batch_size = batch_size
-        self.shuffle = shuffle
-        self.drop_last = drop_last
-        self.N = dataset_len // R
-        self.seed = seed
-
-        # precompute indices for each resolution:
-        # for res r, indices are: r, r+R, r+2R, ..., r+(N-1)*R
-        self.group_indices = []
-        for r in range(R):
-            self.group_indices.append([r + k * R for k in range(self.N)])
-
-    def __iter__(self):
-        rng = random.Random(self.seed)
-        # For each group create a local copy and optionally shuffle
-        groups = [g.copy() for g in self.group_indices]
-        if self.shuffle:
-            for g in groups:
-                rng.shuffle(g)
-
-        # Generate batches: we will iterate groups in round-robin or random order
-        # Option A: random order of groups each epoch to mix which resolution appears earlier
-        order = list(range(self.R))
-        if self.shuffle:
-            rng.shuffle(order)
-
-        batches = []
-        for r in order:
-            g = groups[r]
-            # split g into batches
-            for i in range(0, len(g), self.batch_size):
-                batch = g[i:i + self.batch_size]
-                if len(batch) < self.batch_size and self.drop_last:
-                    continue
-                batches.append(batch)
-
-        # finally shuffle the order of batches if desired (optional)
-        if self.shuffle:
-            rng.shuffle(batches)
-
-        # yield flat index sequence of batches
-        for batch in batches:
-            yield batch
-
-    def __len__(self):
-        # total number of batches across all resolutions
-        if self.drop_last:
-            per_group = self.N // self.batch_size
-        else:
-            per_group = (self.N + self.batch_size - 1) // self.batch_size
-        return per_group * self.R

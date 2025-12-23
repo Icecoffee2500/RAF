@@ -68,7 +68,13 @@ def main(args):
 
     if args.client_res:
         config.MODEL.IMAGE_SIZE, config.MODEL.HEATMAP_SIZE = setup_client_resolutions(args.client_res, args.kd_use)
-        config.MODEL.IMAGE_SIZE, config.MODEL.HEATMAP_SIZE = config.MODEL.IMAGE_SIZE[0], config.MODEL.HEATMAP_SIZE[0]
+        if len(config.MODEL.IMAGE_SIZE) == 1 and len(config.MODEL.HEATMAP_SIZE) == 1:
+            print(f"this is single-resolution: {args.client_res}")
+            config.MODEL.IMAGE_SIZE, config.MODEL.HEATMAP_SIZE = config.MODEL.IMAGE_SIZE[0], config.MODEL.HEATMAP_SIZE[0]
+        else:
+            print(f"this is multi-res: {args.client_res}")
+            cl_mr = True
+        
         print(f"image size: {config.MODEL.IMAGE_SIZE}")
         print(f"heatmap size: {config.MODEL.HEATMAP_SIZE}")
     
@@ -175,6 +181,7 @@ def main(args):
         hm_size=config.MODEL.HEATMAP_SIZE,
         # batch_size=args.gnc_train_bs,
         batch_size=args.train_bs,
+        cl_mr=cl_mr,
         is_proxy=False,
         samples_per_split=args.samples_per_client,
         # samples_per_split=args.gnc_split_num,
@@ -223,8 +230,8 @@ def main(args):
             # evaluate performance of each clients
             perf_indicator = cl_client.evaluate(
                 final_output_dir=final_output_dir,
-                backbone=backbone,
-                keypoint_head=deconv_head,
+                # backbone=backbone,
+                # keypoint_head=deconv_head,
                 wdb=wdb,
             )
             
