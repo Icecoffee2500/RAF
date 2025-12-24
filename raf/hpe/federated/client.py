@@ -103,6 +103,8 @@ class FLClient:
         if cl_mr:
             train_dataset = MixedResolutionDataset(train_dataset)
             batch_sampler = HeteroBatchSampler(dataset_len=len(train_dataset), batch_size=32)
+        else:
+            batch_sampler = None
         
         self.train_loader, self.valid_loader = build_train_val_dataloader(
             train_dataset, self.valid_dataset,
