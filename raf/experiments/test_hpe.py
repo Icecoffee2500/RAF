@@ -184,6 +184,7 @@ def main(args):
         # keypoint_head=global_fl_model.keypoint_head,
         final_output_dir=final_output_dir,
         wdb=wdb,
+        test_interpolate=args.test_interpolate
     )
 
 

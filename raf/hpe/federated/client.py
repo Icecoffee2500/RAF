@@ -390,8 +390,10 @@ class FLClient:
         self.acc.update(total_avg_acc, total_cnt)
         self.losses.update(total_avg_loss.item(), imgs[0].size(0))
     
-    def evaluate(self, final_output_dir, wdb):
+    def evaluate(self, final_output_dir, wdb, test_interpolate=False):
     # def evaluate(self, final_output_dir, backbone, keypoint_head, wdb):
+        if test_interpolate:
+            print(f"interpolation test: {test_interpolate}")
         batch_time = AverageMeter()
         self.losses.reset()
         self.acc.reset()
@@ -407,12 +409,18 @@ class FLClient:
         image_path = [] # image의 파일 경로
         bbox_ids = [] # bounding box의 id (object마다 bounding box의 번호가 부여됨.)
         img_idx = 0 # batch마다 idx를 업데이트 하면서 이미지의 순서를 알려줌.
+
+        interpolate_shape = [256, 192]
         
         with torch.no_grad():
             end = time.time()
             epoch_start_time = datetime.now()
             for batch_idx, (img, heatmap, heatmap_weight, meta) in enumerate(self.valid_loader):
-                img, heatmap, heatmap_weight = img.to(self.device), heatmap.to(self.device), heatmap_weight.to(self.device)                
+                img, heatmap, heatmap_weight = img.to(self.device), heatmap.to(self.device), heatmap_weight.to(self.device)
+
+                if test_interpolate:
+                    img = F.interpolate(img, size=(interpolate_shape.shape[0], interpolate_shape.shape[1]), mode='bicubic')
+                    heatmap = F.interpolate(heatmap, size=(interpolate_shape.shape[0], interpolate_shape.shape[1]), mode='bicubic')
                 #---------forward prop-------------
                 output = self.model(img)
                 
