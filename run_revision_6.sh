@@ -36,8 +36,11 @@ uv run raf/experiments/train_hpe_fl.py --cfg raf/configs/hpe/mpii_mpii_mpii/vit-
 # MOON-mu_1e-7-NoKD-HML
 uv run raf/experiments/train_hpe_fl.py --cfg raf/configs/hpe/mpii_mpii_mpii/vit-small_256x192_192x144_128x96_sfl.yaml --pretrained ../pretrained/mae_pretrain_vit_small.pth --wandb --gpu 6 --samples_per_client 4000 --client_num 3 --train_bs 32 --client_res high mid low --fed moon --mu_con 1e-7
 
-# MOON-mu_1e-8-MRD-HML
+# MOON-mu_1e-8-MRKD-HML
 uv run raf/experiments/train_hpe_fl.py --cfg raf/configs/hpe/mpii_mpii_mpii/vit-small_256x192_192x144_128x96_sfl.yaml --pretrained ../pretrained/mae_pretrain_vit_small.pth --wandb --gpu 6 --samples_per_client 4000 --client_num 3 --train_bs 32 --client_res high mid low --fed moon --mu_con 1e-8 --kd_use --kd_alpha 0.5
+
+# MOON-mu_1e-5-MRKD-HML
+uv run raf/experiments/train_hpe_fl.py --cfg raf/configs/hpe/mpii_mpii_mpii/vit-small_256x192_192x144_128x96_sfl.yaml --pretrained ../pretrained/mae_pretrain_vit_small.pth --wandb --gpu 6 --samples_per_client 4000 --client_num 3 --train_bs 32 --client_res high mid low --fed moon --mu_con 1e-5 --kd_use --kd_alpha 0.5
 
 
 
