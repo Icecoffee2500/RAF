@@ -168,6 +168,13 @@ def parse_args():
         nargs='+',
         help="Test Resolution - (256 192) (192 144)"
     )
+    parser.add_argument(
+        "--interpolate_im_shape",
+        type=int,
+        nargs='+',
+        help="Test Resolution - (256 192) (192 144)"
+    )
+    
     args, rest = parser.parse_known_args()
 
     # update config
