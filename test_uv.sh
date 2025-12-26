@@ -53,6 +53,7 @@ uv run raf/experiments/test_hpe.py --cfg raf/configs/hpe/mpii_mpii_mpii/vit-smal
 
 
 uv run raf/experiments/test_hpe.py --cfg raf/configs/hpe/mpii_mpii_mpii/vit-small_256x192_192x144_128x96_sfl.yaml --pretrained output/fl_moon-mu_con_1e-5-4000-hml-nokd.pth --wandb --gpu 7 --test_res 128 96 --test_interpolate
+uv run raf/experiments/test_hpe.py --cfg raf/configs/hpe/mpii_mpii_mpii/vit-small_256x192_192x144_128x96_sfl.yaml --pretrained output/fl_moon-mu_con_1e-5-4000-hml-nokd.pth --wandb --gpu 7 --test_res 128 96 --test_interpolate --interpolate_im_shape 320 240
 
 
 fl_moon-mu_con_1e-5-4000-hml-mrkd.pth

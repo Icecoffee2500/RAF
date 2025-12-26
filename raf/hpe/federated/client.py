@@ -396,7 +396,11 @@ class FLClient:
             print(f"interpolation test: {test_interpolate}")
             print(f"interpolate_im_shape = {interpolate_im_shape}")
             # interpolate_im_shape = [256, 192]
-            interpolate_hm_shape = interpolate_im_shape / 4
+            # interpolate_hm_shape = interpolate_im_shape / 4
+            interpolate_hm_shape = [
+                interpolate_im_shape[0] // 4,
+                interpolate_im_shape[1] // 4
+            ]
         
         batch_time = AverageMeter()
         self.losses.reset()
