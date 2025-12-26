@@ -410,7 +410,8 @@ class FLClient:
         bbox_ids = [] # bounding box의 id (object마다 bounding box의 번호가 부여됨.)
         img_idx = 0 # batch마다 idx를 업데이트 하면서 이미지의 순서를 알려줌.
 
-        interpolate_shape = [256, 192]
+        interpolate_im_shape = [256, 192]
+        interpolate_hm_shape = [64, 48]
         
         with torch.no_grad():
             end = time.time()
@@ -419,8 +420,8 @@ class FLClient:
                 img, heatmap, heatmap_weight = img.to(self.device), heatmap.to(self.device), heatmap_weight.to(self.device)
 
                 if test_interpolate:
-                    img = F.interpolate(img, size=(interpolate_shape.shape[0], interpolate_shape.shape[1]), mode='bicubic')
-                    heatmap = F.interpolate(heatmap, size=(interpolate_shape.shape[0], interpolate_shape.shape[1]), mode='bicubic')
+                    img = F.interpolate(img, size=(interpolate_im_shape[0], interpolate_im_shape[1]), mode='bicubic')
+                    heatmap = F.interpolate(heatmap, size=(interpolate_hm_shape[0], interpolate_hm_shape[1]), mode='bicubic')
                 #---------forward prop-------------
                 output = self.model(img)
                 
