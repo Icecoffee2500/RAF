@@ -94,7 +94,8 @@ def parse_args():
     parser.add_argument("--loss_scale", type=int, default=1, help="loss scale")
     parser.add_argument("--dyn_alpha", type=float, default=1e-6, help="Dynamic Regularization alpha Coefficient")
     parser.add_argument("--mu_con", type=float, default=1.0, help="MOON - mu")
-    parser.add_argument("--test_interpolate", type=bool, default=False, help="test interpolate")
+    # parser.add_argument("--test_interpolate", type=bool, default=False, help="test interpolate")
+    parser.add_argument('--test_interpolate', action='store_true', default=False)
     # -------
     # Optimizer parameters
     parser.add_argument('--amp', action='store_true')
