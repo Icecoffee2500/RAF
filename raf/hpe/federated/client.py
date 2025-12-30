@@ -108,8 +108,8 @@ class FLClient:
         
         self.train_loader, self.valid_loader = build_train_val_dataloader(
             train_dataset, self.valid_dataset,
-            # list([config.TRAIN.BATCH_SIZE, config.TEST.BATCH_SIZE]), config.WORKERS,
-            list([config.TRAIN.BATCH_SIZE, 32]), config.WORKERS,
+            list([config.TRAIN.BATCH_SIZE, config.TEST.BATCH_SIZE]), config.WORKERS,
+            # list([config.TRAIN.BATCH_SIZE, 32]), config.WORKERS,
             cl_mr=cl_mr, batch_sampler=batch_sampler
         )
         
@@ -171,21 +171,21 @@ class FLClient:
         # forward propagation
         img, heatmap, heatmap_weight = img.to(self.device), heatmap.to(self.device), heatmap_weight.to(self.device)
         
-        # profile은 gradient 계산 없이 수행해야 정확한 FLOPs 측정이 가능
-        print(f"Train Step Single Profile Start")
-        self.model.eval()
-        with torch.no_grad():
-            macs, params = profile(self.model, inputs=(img,), verbose=False)
+        # # profile은 gradient 계산 없이 수행해야 정확한 FLOPs 측정이 가능
+        # print(f"Train Step Single Profile Start")
+        # self.model.eval()
+        # with torch.no_grad():
+        #     macs, params = profile(self.model, inputs=(img,), verbose=False)
 
-        flops = macs * 2
-        gflops = flops / 1e9
+        # flops = macs * 2
+        # gflops = flops / 1e9
 
-        bytes_per_param = 4  # float32
-        model_size_bytes = params * bytes_per_param
-        model_size_mb = model_size_bytes / (1024 ** 2)
+        # bytes_per_param = 4  # float32
+        # model_size_bytes = params * bytes_per_param
+        # model_size_mb = model_size_bytes / (1024 ** 2)
 
-        print(f"GFLOPs: {gflops:.2f} GFLOPs")
-        print(f"Model Size: {model_size_mb:.2f} MB")
+        # print(f"GFLOPs: {gflops:.2f} GFLOPs")
+        # print(f"Model Size: {model_size_mb:.2f} MB")
 
         output = self.model(img)
         
@@ -450,17 +450,17 @@ class FLClient:
                     img = F.interpolate(img, size=(interpolate_im_shape[0], interpolate_im_shape[1]), mode='bicubic')
                     heatmap = F.interpolate(heatmap, size=(interpolate_hm_shape[0], interpolate_hm_shape[1]), mode='bicubic')
                 
-                macs, params = profile(self.model, inputs=(img,), verbose=False)
+                # macs, params = profile(self.model, inputs=(img,), verbose=False)
 
-                flops = macs * 2
-                gflops = flops / 1e9
+                # flops = macs * 2
+                # gflops = flops / 1e9
 
-                bytes_per_param = 4  # float32
-                model_size_bytes = params * bytes_per_param
-                model_size_mb = model_size_bytes / (1024 ** 2)
+                # bytes_per_param = 4  # float32
+                # model_size_bytes = params * bytes_per_param
+                # model_size_mb = model_size_bytes / (1024 ** 2)
 
-                print(f"GFLOPs: {gflops:.2f} GFLOPs")
-                print(f"Model Size: {model_size_mb:.2f} MB")
+                # print(f"GFLOPs: {gflops:.2f} GFLOPs")
+                # print(f"Model Size: {model_size_mb:.2f} MB")
 
                 #---------forward prop-------------
                 output = self.model(img)
