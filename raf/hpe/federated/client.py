@@ -169,17 +169,17 @@ class FLClient:
         
         # forward propagation
         img, heatmap, heatmap_weight = img.to(self.device), heatmap.to(self.device), heatmap_weight.to(self.device)
-        # macs, params = profile(self.model, inputs=(img,), verbose=False)
+        macs, params = profile(self.model, inputs=(img,), verbose=False)
 
-        # flops = macs * 2
-        # gflops = flops / 1e9
+        flops = macs * 2
+        gflops = flops / 1e9
 
-        # bytes_per_param = 4  # float32
-        # model_size_bytes = params * bytes_per_param
-        # model_size_mb = model_size_bytes / (1024 ** 2)
+        bytes_per_param = 4  # float32
+        model_size_bytes = params * bytes_per_param
+        model_size_mb = model_size_bytes / (1024 ** 2)
 
-        # print(f"GFLOPs: {gflops:.2f} GFLOPs")
-        # print(f"Model Size: {model_size_mb:.2f} MB")
+        print(f"GFLOPs: {gflops:.2f} GFLOPs")
+        print(f"Model Size: {model_size_mb:.2f} MB")
 
         output = self.model(img)
         
@@ -292,17 +292,17 @@ class FLClient:
             heatmap = heatmaps[idx]
             heatmap_weight = heatmap_weights[idx]
 
-            macs, params = profile(self.model, inputs=(img,), verbose=False)
+            # macs, params = profile(self.model, inputs=(img,), verbose=False)
 
-            flops = macs * 2
-            gflops = flops / 1e9
+            # flops = macs * 2
+            # gflops = flops / 1e9
 
-            bytes_per_param = 4  # float32
-            model_size_bytes = params * bytes_per_param
-            model_size_mb = model_size_bytes / (1024 ** 2)
+            # bytes_per_param = 4  # float32
+            # model_size_bytes = params * bytes_per_param
+            # model_size_mb = model_size_bytes / (1024 ** 2)
 
-            print(f"GFLOPs: {gflops:.2f} GFLOPs")
-            print(f"Model Size: {model_size_mb:.2f} MB")
+            # print(f"GFLOPs: {gflops:.2f} GFLOPs")
+            # print(f"Model Size: {model_size_mb:.2f} MB")
             
             # calculate gt loss
             # heatmap loss
