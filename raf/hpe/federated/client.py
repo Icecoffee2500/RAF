@@ -171,6 +171,7 @@ class FLClient:
         img, heatmap, heatmap_weight = img.to(self.device), heatmap.to(self.device), heatmap_weight.to(self.device)
         
         # profile은 gradient 계산 없이 수행해야 정확한 FLOPs 측정이 가능
+        self.model.eval()
         with torch.no_grad():
             macs, params = profile(self.model, inputs=(img,), verbose=False)
 
