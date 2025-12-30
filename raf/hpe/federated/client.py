@@ -169,7 +169,10 @@ class FLClient:
         
         # forward propagation
         img, heatmap, heatmap_weight = img.to(self.device), heatmap.to(self.device), heatmap_weight.to(self.device)
-        macs, params = profile(self.model, inputs=(img,), verbose=False)
+        
+        # profile은 gradient 계산 없이 수행해야 정확한 FLOPs 측정이 가능
+        with torch.no_grad():
+            macs, params = profile(self.model, inputs=(img,), verbose=False)
 
         flops = macs * 2
         gflops = flops / 1e9
