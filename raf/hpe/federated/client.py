@@ -451,31 +451,31 @@ class FLClient:
                     heatmap = F.interpolate(heatmap, size=(interpolate_hm_shape[0], interpolate_hm_shape[1]), mode='bicubic')
                 
                 
-                macs, params = profile(self.model, inputs=(img,), verbose=False)
+                # macs, params = profile(self.model, inputs=(img,), verbose=False)
 
-                flops = macs * 2
-                gflops = flops / 1e9
+                # flops = macs * 2
+                # gflops = flops / 1e9
 
-                bytes_per_param = 4  # float32
-                model_size_bytes = params * bytes_per_param
-                model_size_mb = model_size_bytes / (1024 ** 2)
+                # bytes_per_param = 4  # float32
+                # model_size_bytes = params * bytes_per_param
+                # model_size_mb = model_size_bytes / (1024 ** 2)
 
-                if test_interpolate:
-                    # Image interpolation FLOPs
-                    img_interp_flops = calculate_bicubic_interpolation_flops(
-                        img.shape, (interpolate_im_shape[0], interpolate_im_shape[1])
-                    )
+                # if test_interpolate:
+                #     # Image interpolation FLOPs
+                #     img_interp_flops = calculate_bicubic_interpolation_flops(
+                #         img.shape, (interpolate_im_shape[0], interpolate_im_shape[1])
+                #     )
                     
-                    # Heatmap interpolation FLOPs  
-                    hm_interp_flops = calculate_bicubic_interpolation_flops(
-                        heatmap.shape, (interpolate_hm_shape[0], interpolate_hm_shape[1])
-                    )
+                #     # Heatmap interpolation FLOPs  
+                #     hm_interp_flops = calculate_bicubic_interpolation_flops(
+                #         heatmap.shape, (interpolate_hm_shape[0], interpolate_hm_shape[1])
+                #     )
                     
-                    total_interp_flops = img_interp_flops + hm_interp_flops
-                    gflops = gflops + (total_interp_flops / 1e9)
+                #     total_interp_flops = img_interp_flops + hm_interp_flops
+                #     gflops = gflops + (total_interp_flops / 1e9)
                 
-                print(f"GFLOPs: {gflops:.2f} GFLOPs")
-                print(f"Model Size: {model_size_mb:.2f} MB")
+                # print(f"GFLOPs: {gflops:.2f} GFLOPs")
+                # print(f"Model Size: {model_size_mb:.2f} MB")
 
                 #---------forward prop-------------
                 output = self.model(img)
