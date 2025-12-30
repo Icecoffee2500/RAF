@@ -392,6 +392,10 @@ class FLClient:
     
     def evaluate(self, final_output_dir, wdb, test_interpolate=False, interpolate_im_shape=[256, 192]):
     # def evaluate(self, final_output_dir, backbone, keypoint_head, wdb):
+        # for cost comparison
+        torch.cuda.reset_peak_memory_stats(self.device)
+        memory_start = time.perf_counter()
+
         if test_interpolate:
             print(f"interpolation test: {test_interpolate}")
             print(f"interpolate_im_shape = {interpolate_im_shape}")
@@ -427,6 +431,19 @@ class FLClient:
                 if test_interpolate:
                     img = F.interpolate(img, size=(interpolate_im_shape[0], interpolate_im_shape[1]), mode='bicubic')
                     heatmap = F.interpolate(heatmap, size=(interpolate_hm_shape[0], interpolate_hm_shape[1]), mode='bicubic')
+                
+                macs, params = profile(self.model, inputs=(img,), verbose=False)
+
+                flops = macs * 2
+                gflops = flops / 1e9
+
+                bytes_per_param = 4  # float32
+                model_size_bytes = params * bytes_per_param
+                model_size_mb = model_size_bytes / (1024 ** 2)
+
+                print(f"GFLOPs: {gflops:.2f} GFLOPs")
+                print(f"Model Size: {model_size_mb:.2f} MB")
+
                 #---------forward prop-------------
                 output = self.model(img)
                 
@@ -521,6 +538,20 @@ class FLClient:
             else:
                 self._print_name_value(name_values, full_arch_name)
             self.logger.info(f"This epoch takes {datetime.now() - epoch_start_time}")
+        
+        # for cost comparison
+        torch.cuda.synchronize(self.device)
+        end = time.perf_counter()
+
+        peak_alloc = torch.cuda.max_memory_allocated(self.device)
+        current_alloc = torch.cuda.memory_allocated(self.device)
+        reserved = torch.cuda.memory_reserved(self.device)
+
+        print(f"step time: {end-memory_start:.3f}s")
+        print(f"GPU peak allocated: {peak_alloc/1024**2:.2f} MB")
+        print(f"GPU currently allocated: {current_alloc/1024**2:.2f} MB")
+        print(f"GPU reserved (cached): {reserved/1024**2:.2f} MB")
+        print(torch.cuda.memory_summary(device=self.device, abbreviated=True))
             
         return perf_indicator
     
