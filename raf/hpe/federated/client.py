@@ -450,17 +450,32 @@ class FLClient:
                     img = F.interpolate(img, size=(interpolate_im_shape[0], interpolate_im_shape[1]), mode='bicubic')
                     heatmap = F.interpolate(heatmap, size=(interpolate_hm_shape[0], interpolate_hm_shape[1]), mode='bicubic')
                 
-                # macs, params = profile(self.model, inputs=(img,), verbose=False)
+                
+                macs, params = profile(self.model, inputs=(img,), verbose=False)
 
-                # flops = macs * 2
-                # gflops = flops / 1e9
+                flops = macs * 2
+                gflops = flops / 1e9
 
-                # bytes_per_param = 4  # float32
-                # model_size_bytes = params * bytes_per_param
-                # model_size_mb = model_size_bytes / (1024 ** 2)
+                bytes_per_param = 4  # float32
+                model_size_bytes = params * bytes_per_param
+                model_size_mb = model_size_bytes / (1024 ** 2)
 
-                # print(f"GFLOPs: {gflops:.2f} GFLOPs")
-                # print(f"Model Size: {model_size_mb:.2f} MB")
+                if test_interpolate:
+                    # Image interpolation FLOPs
+                    img_interp_flops = calculate_bicubic_interpolation_flops(
+                        img.shape, (interpolate_im_shape[0], interpolate_im_shape[1])
+                    )
+                    
+                    # Heatmap interpolation FLOPs  
+                    hm_interp_flops = calculate_bicubic_interpolation_flops(
+                        heatmap.shape, (interpolate_hm_shape[0], interpolate_hm_shape[1])
+                    )
+                    
+                    total_interp_flops = img_interp_flops + hm_interp_flops
+                    gflops = gflops + (total_interp_flops / 1e9)
+                
+                print(f"GFLOPs: {gflops:.2f} GFLOPs")
+                print(f"Model Size: {model_size_mb:.2f} MB")
 
                 #---------forward prop-------------
                 output = self.model(img)
@@ -632,3 +647,13 @@ class FLClient:
                     self.wdb.log({f"Client [{idx}] Avg loss": self.losses.avg})
                     self.wdb.log({f"Client [{idx}] Accuracy": self.acc.avg})
     
+
+def calculate_bicubic_interpolation_flops(img_shape, target_shape):
+    """
+    Bicubic interpolation: 각 출력 픽셀당 ~31 FLOPs
+    (16 multiplications + 15 additions)
+    """
+    N, C, H_out, W_out = img_shape[0], img_shape[1], target_shape[0], target_shape[1]
+    flops_per_pixel = 31  # 16 mult + 15 add
+    total_flops = N * C * H_out * W_out * flops_per_pixel
+    return total_flops
