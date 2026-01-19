@@ -109,7 +109,8 @@ class FLClient:
         self.train_loader, self.valid_loader = build_train_val_dataloader(
             train_dataset, self.valid_dataset,
             # list([config.TRAIN.BATCH_SIZE, config.TEST.BATCH_SIZE]), config.WORKERS,
-            list([batch_size, config.TEST.BATCH_SIZE]), config.WORKERS,
+            # list([batch_size, config.TEST.BATCH_SIZE]), config.WORKERS,
+            batch_size, config.WORKERS,
             cl_mr=cl_mr, batch_sampler=batch_sampler
         )
         
