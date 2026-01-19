@@ -6,8 +6,8 @@ PRINT_FREQ: 100
 DATASET:
   DATASET: 'mpii'
   ROOT: 'data/mpii/'
-  TEST_SET: 'valid'
-  # TEST_SET: 'valid_half'
+  # TEST_SET: 'valid'
+  TEST_SET: 'valid_half'
   TRAIN_SET: 'train'
   FLIP: true
   ROT_FACTOR: 30

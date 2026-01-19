@@ -342,10 +342,10 @@ class FLClient:
                 # )
                 
                 alpha = self.config.KD_ALPHA
-                loss = loss_gt * alpha + loss_kd * (1 - alpha)
+                # loss = loss_gt * alpha + loss_kd * (1 - alpha)
                 # print(f"[{img.shape[2]}x{img.shape[3]}] KD Loss Used")
                 # loss = loss_kd * (1 - alpha)
-                # loss = loss_gt + loss_kd
+                loss = loss_gt + loss_kd
             else:
                 loss = loss_gt
                 # print(f"[{img.shape[2]}x{img.shape[3]}] GT Loss Used")
@@ -366,11 +366,11 @@ class FLClient:
             total_cnt = total_cnt + cnt
         
         # averaging loss, acc
-        # total_avg_loss = total_loss / len(imgs)
         # total_avg_loss = total_loss
         loss_scale = self.config.LOSS_SCALE
         
-        total_avg_loss = total_loss * loss_scale
+        # total_avg_loss = total_loss * loss_scale
+        total_avg_loss = total_loss / len(imgs)
         total_avg_acc = total_avg_acc / len(imgs)
         
         # backward propagation
