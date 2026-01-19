@@ -39,7 +39,7 @@ class FLClient:
         logger,
         im_size,
         hm_size,
-        batch_size,
+        batch_size: list[int, int],
         cl_mr=False,
         is_proxy=False,
         samples_per_split=0,
