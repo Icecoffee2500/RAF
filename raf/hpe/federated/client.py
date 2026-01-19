@@ -102,14 +102,14 @@ class FLClient:
 
         if cl_mr:
             train_dataset = MixedResolutionDataset(train_dataset)
-            batch_sampler = HeteroBatchSampler(dataset_len=len(train_dataset), batch_size=32)
+            batch_sampler = HeteroBatchSampler(dataset_len=len(train_dataset), batch_size=batch_size)
         else:
             batch_sampler = None
         
         self.train_loader, self.valid_loader = build_train_val_dataloader(
             train_dataset, self.valid_dataset,
-            list([config.TRAIN.BATCH_SIZE, config.TEST.BATCH_SIZE]), config.WORKERS,
-            # list([config.TRAIN.BATCH_SIZE, 32]), config.WORKERS,
+            # list([config.TRAIN.BATCH_SIZE, config.TEST.BATCH_SIZE]), config.WORKERS,
+            list([batch_size, config.TEST.BATCH_SIZE]), config.WORKERS,
             cl_mr=cl_mr, batch_sampler=batch_sampler
         )
         

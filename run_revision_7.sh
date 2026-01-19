@@ -20,3 +20,8 @@ uv run raf/experiments/train_hpe_fl.py --cfg raf/configs/hpe/mpii_mpii_mpii/vit-
 
 # CL
 uv run raf/experiments/train_hpe_cl.py --cfg raf/configs/hpe/mpii_mpii_mpii/vit-small_256x192_192x144_128x96_sfl.yaml --pretrained ../pretrained/mae_pretrain_vit_small.pth --wandb --gpu 0 --samples_per_client 12000 --train_bs 32 --loss_scale 1 --client_res high
+
+# CL - vit-h / 576x432 - no kd
+uv run raf/experiments/train_hpe_cl.py --cfg raf/configs/hpe/mpii_mpii_mpii/vit-huge.yaml --pretrained ../pretrained/mae_pretrain_vit_huge.pth --wandb --gpu 0 --samples_per_client 0 --train_bs 4 --test_bs 4 --loss_scale 1 --client_res high
+# CL - vit-h / 576x432 - mrkd
+uv run raf/experiments/train_hpe_cl.py --cfg raf/configs/hpe/mpii_mpii_mpii/vit-huge.yaml --pretrained ../pretrained/mae_pretrain_vit_huge.pth --wandb --gpu 0 --samples_per_client 0 --train_bs 4 --test_bs 4 --loss_scale 1 --client_res high --kd_use --kd_alpha 0.5

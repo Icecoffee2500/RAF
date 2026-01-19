@@ -1,0 +1,95 @@
+OUTPUT_DIR: 'output'
+LOG_DIR: 'log'
+WORKERS: 4
+PRINT_FREQ: 100
+
+DATASET:
+  DATASET: 'mpii'
+  ROOT: 'data/mpii/'
+  TEST_SET: 'valid'
+  # TEST_SET: 'valid_half'
+  TRAIN_SET: 'train'
+  FLIP: true
+  ROT_FACTOR: 30
+  SCALE_FACTOR: 0.25
+  NUM_JOINTS_HALF_BODY: 8
+  PROB_HALF_BODY: 0.3
+  TARGET_HEATMAP: True
+  NUMBER_OF_SPLITS: 1
+
+FED:
+  FEDAVG: True
+  FEDPROX: False
+  MU: 1.0
+  # MU: 0.1
+
+KD_USE: True
+KD_ALPHA: 0.1
+LOSS_SCALE: 1
+
+MODEL:
+  NAME: vit
+  TYPE: 'huge'
+
+  NUM_JOINTS: 16
+  PRETRAINED: 'checkpoints/mae_pretrain_vit_huge.pth'
+  
+  # Multi-Resolution을 위한 셋팅
+  # IMAGE_SIZE:
+  # -
+  #   - 192
+  #   - 256
+  # -
+  #   - 144
+  #   - 192
+  # -
+  #   - 96
+  #   - 128
+  # HEATMAP_SIZE:
+  # -
+  #   - 48
+  #   - 64
+  # -
+  #   - 36
+  #   - 48
+  # -
+  #   - 24
+  #   - 32
+  
+  USE_GPE: true
+  USE_LPE: true
+
+LOSS:
+  HM_LOSS: "JointMSEloss"
+  
+  HM_LOSS_WEIGHT: 1
+  KD_LOSS_WEIGHT: 1
+  
+TRAIN:
+  BATCH_SIZE: 32
+  SHUFFLE: true # 얘도 실제로 사용되지는 않고 있음. 사용될 수 있도록 수정해야 함. # 데이터로더 셔플 # 데이터쪽 세팅으로 들어가야 하지 않나?
+  BEGIN_EPOCH: 0
+  END_EPOCH: 211
+
+  OPTIMIZER: 'adamW' # 얘도 실제로 사용되지는 않고 있음. 사용될 수 있도록 수정해야 함.
+  # LR: 0.0005 # 분산학습할 때는 여기에서 GPU 수만큼 나눠줘야 함.
+  LR: 0.00025
+  LR_FACTOR: 0.1
+  LR_STEP:
+  - 170
+  - 200
+
+TEST: # 대부분 COCO 관련 설정들.
+  BATCH_SIZE: 64
+  COCO_BBOX_FILE: 'data/coco/person_detection_results/COCO_val2017_detections_AP_H_56_person.json'
+  FLIP_TEST: true
+  IMAGE_THRE: 0.0
+  IN_VIS_THRE: 0.2
+  NMS_THRE: 1.0
+  OKS_THRE: 0.9
+  USE_GT_BBOX: False
+  USE_UDP : True
+
+
+EVALUATION:
+  INTERVAL: 10

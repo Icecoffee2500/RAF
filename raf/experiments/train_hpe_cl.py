@@ -71,6 +71,7 @@ def main(args):
         if len(config.MODEL.IMAGE_SIZE) == 1 and len(config.MODEL.HEATMAP_SIZE) == 1:
             print(f"this is single-resolution: {args.client_res}")
             config.MODEL.IMAGE_SIZE, config.MODEL.HEATMAP_SIZE = config.MODEL.IMAGE_SIZE[0], config.MODEL.HEATMAP_SIZE[0]
+            cl_mr = False
         else:
             print(f"this is multi-res: {args.client_res}")
             cl_mr = True
